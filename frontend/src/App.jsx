@@ -9,7 +9,7 @@ function App() {
   const [filters, setFilters] = useState({})
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#F8FAFC]">
       <Header />
       <FilterBar 
         activeArea={activeArea}
