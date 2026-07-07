@@ -25,6 +25,36 @@ export async function getProperties(filters = {}) {
   return data
 }
 
+export async function getPropertyById(id) {
+  const { data, error } = await supabase
+    .from('properties')
+    .select(`
+      *,
+      users (
+        name,
+        whatsapp_number,
+        profile_picture,
+        is_verified_agent
+      )
+    `)
+    .eq('id', id)
+    .single()
+  
+  if (error) throw error
+  return data
+}
+
+export async function createProperty(propertyData) {
+  const { data, error } = await supabase
+    .from('properties')
+    .insert([propertyData])
+    .select()
+    .single()
+  
+  if (error) throw error
+  return data
+}
+
 export async function getAreas() {
   const { data, error } = await supabase
     .from('properties')

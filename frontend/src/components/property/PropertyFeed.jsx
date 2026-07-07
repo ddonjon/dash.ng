@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getProperties } from '../../services/properties'
 import { PropertyCard } from './PropertyCard'
 
 export function PropertyFeed({ activeArea, filters }) {
+  const navigate = useNavigate()
   const [properties, setProperties] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -32,19 +34,23 @@ export function PropertyFeed({ activeArea, filters }) {
     }
   }
 
+  const handlePropertyClick = (property) => {
+    navigate(`/property/${property.id}`)
+  }
+
   if (loading) {
     return (
       <div className="space-y-4 py-4">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="bg-white rounded-2xl shadow-sm overflow-hidden animate-pulse border border-gray-200">
+          <div key={i} className="bg-gray-50 rounded-2xl shadow-sm overflow-hidden animate-pulse border-2 border-gray-300">
             <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4">
-              <div className="h-48 sm:h-full sm:min-h-[200px] bg-gray-100" />
+              <div className="h-48 sm:h-full sm:min-h-[200px] bg-gray-200" />
               <div className="col-span-1 sm:col-span-2 lg:col-span-3 p-5 space-y-3">
-                <div className="h-4 bg-gray-100 rounded w-3/4" />
-                <div className="h-3 bg-gray-100 rounded w-1/2" />
+                <div className="h-4 bg-gray-200 rounded w-3/4" />
+                <div className="h-3 bg-gray-200 rounded w-1/2" />
                 <div className="flex gap-2">
-                  <div className="h-6 bg-gray-100 rounded-full w-16" />
-                  <div className="h-6 bg-gray-100 rounded-full w-16" />
+                  <div className="h-6 bg-gray-200 rounded-full w-16" />
+                  <div className="h-6 bg-gray-200 rounded-full w-16" />
                 </div>
               </div>
             </div>
@@ -91,7 +97,7 @@ export function PropertyFeed({ activeArea, filters }) {
         <PropertyCard 
           key={property.id} 
           property={property}
-          onClick={() => console.log('Property clicked:', property.id)}
+          onClick={() => handlePropertyClick(property)}
         />
       ))}
     </div>

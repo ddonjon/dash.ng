@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, MapPin, Bed, X, CheckCircle, MessageCircle } from 'lucide-react'
+import { 
+  ArrowLeft, MapPin, Bed, X, CheckCircle, MessageCircle, 
+  Phone, Home, Building, Clock
+} from 'lucide-react'
 import { getPropertyById } from '../../services/properties'
 
 export function PropertyDetail() {
@@ -39,8 +42,13 @@ export function PropertyDetail() {
 
   const handleWhatsApp = () => {
     const phone = property?.users?.whatsapp_number?.replace('+', '') || ''
-    const message = `Hello ${property?.users?.name || 'Agent'}, I'm interested in your property: ${property?.title} in ${property?.area} for ${formatPrice(property?.price)}. Is it still available?`
+    const message = `Hello ${property?.users?.name || 'Agent'}, I'm interested in your property: ${property?.title} in ${property?.area} for ${formatPrice(property?.price)} per annum. Is it still available?`
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank')
+  }
+
+  const handleCall = () => {
+    const phone = property?.users?.whatsapp_number?.replace(/\s/g, '') || ''
+    window.location.href = `tel:${phone}`
   }
 
   const openImageViewer = (index) => {
@@ -80,18 +88,25 @@ export function PropertyDetail() {
   const images = property.media_urls?.length > 0 ? property.media_urls : ['https://placehold.co/600x400/e2e8f0/64748b?text=No+Image']
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
-      {/* Back Button - Clean, no text */}
-      <button
-        onClick={() => navigate('/')}
-        className="fixed top-4 left-4 z-50 p-3 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition"
-      >
-        <ArrowLeft size={22} className="text-gray-700" />
-      </button>
+    <div className="min-h-screen bg-gray-50 pb-32">
+      {/* Custom Header with Back Button */}
+      <div className="sticky top-0 z-50 bg-gray-100 shadow-sm border-b border-gray-300">
+        <div className="px-4 py-3 flex items-center">
+          <button
+            onClick={() => navigate('/')}
+            className="p-2 -ml-2 hover:bg-gray-200 rounded-full transition"
+          >
+            <ArrowLeft size={22} className="text-gray-700" />
+          </button>
+          <h1 className="text-base font-semibold text-gray-800 truncate ml-2">
+            {property.title}
+          </h1>
+        </div>
+      </div>
 
       {/* Image Slider */}
       <div 
-        className="relative h-80 sm:h-96 bg-gray-200 cursor-pointer"
+        className="relative h-80 sm:h-[420px] bg-gray-200 cursor-pointer"
         onClick={() => openImageViewer(currentImageIndex)}
       >
         <img
@@ -103,7 +118,12 @@ export function PropertyDetail() {
           }}
         />
         
-        {/* Image Navigation Dots */}
+        {images.length > 1 && (
+          <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-medium">
+            {currentImageIndex + 1} / {images.length}
+          </div>
+        )}
+        
         {images.length > 1 && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
             {images.map((_, index) => (
@@ -113,8 +133,8 @@ export function PropertyDetail() {
                   e.stopPropagation()
                   setCurrentImageIndex(index)
                 }}
-                className={`w-2.5 h-2.5 rounded-full transition ${
-                  index === currentImageIndex ? 'bg-white' : 'bg-white/50'
+                className={`w-2 h-2 rounded-full transition ${
+                  index === currentImageIndex ? 'bg-white' : 'bg-white/40'
                 }`}
               />
             ))}
@@ -123,55 +143,77 @@ export function PropertyDetail() {
       </div>
 
       {/* Content */}
-      <div className="px-4 py-5 max-w-3xl mx-auto space-y-6">
-        {/* Price & Verified */}
-        <div className="flex items-center justify-between">
-          <span className="text-2xl font-bold text-emerald-600">
-            {formatPrice(property.price)}
-          </span>
+      <div className="px-4 py-5 max-w-3xl mx-auto">
+        {/* Price */}
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <span className="text-lg font-bold text-emerald-600">
+              {formatPrice(property.price)}
+            </span>
+            <span className="text-xs text-gray-400 ml-1.5 font-medium">/ annum</span>
+          </div>
           {property.users?.is_verified_agent && (
-            <span className="flex items-center gap-1 text-sm text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
-              <CheckCircle size={14} />
-              Verified Agent
+            <span className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">
+              <CheckCircle size={12} />
+              Verified
             </span>
           )}
         </div>
 
         {/* Title */}
-        <h1 className="text-xl font-bold text-gray-800">
+        <h1 className="text-xl font-semibold text-gray-800 mb-4">
           {property.title}
         </h1>
 
-        {/* Location & Details */}
-        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
-          <span className="flex items-center gap-1">
-            <MapPin size={16} className="text-emerald-500" />
-            {property.area}
-          </span>
-          <span className="w-1 h-1 bg-gray-300 rounded-full" />
-          <span className="flex items-center gap-1">
-            <Bed size={16} className="text-gray-400" />
-            {property.bedrooms} {property.bedrooms === 1 ? 'Bed' : 'Beds'}
-          </span>
+        {/* Quick Info Grid */}
+        <div className="grid grid-cols-2 gap-2 mb-5">
+          <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+            <p className="text-xs text-gray-400">Location</p>
+            <p className="text-sm font-medium text-gray-700 flex items-center gap-1">
+              <MapPin size={14} className="text-emerald-500" />
+              {property.area}
+            </p>
+          </div>
+          <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+            <p className="text-xs text-gray-400">Bedrooms</p>
+            <p className="text-sm font-medium text-gray-700 flex items-center gap-1">
+              <Bed size={14} className="text-gray-400" />
+              {property.bedrooms} {property.bedrooms === 1 ? 'Bed' : 'Beds'}
+            </p>
+          </div>
+          <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+            <p className="text-xs text-gray-400">Property Type</p>
+            <p className="text-sm font-medium text-gray-700 flex items-center gap-1">
+              <Building size={14} className="text-gray-400" />
+              Apartment
+            </p>
+          </div>
+          <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+            <p className="text-xs text-gray-400">Status</p>
+            <p className="text-sm font-medium text-emerald-600 flex items-center gap-1">
+              <Clock size={14} />
+              Available
+            </p>
+          </div>
         </div>
 
-        {/* Description Section */}
-        <div className="bg-white rounded-2xl p-5 border border-gray-200">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">📝 Description</h3>
+        {/* Description */}
+        <div className="mb-5">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Description</h3>
           <p className="text-sm text-gray-600 leading-relaxed">
             {property.description}
           </p>
         </div>
 
-        {/* Features Section */}
+        {/* Features */}
         {property.features?.length > 0 && (
-          <div className="bg-white rounded-2xl p-5 border border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">✨ Features</h3>
+          <div className="mb-5">
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Features & Amenities</h3>
             <div className="flex flex-wrap gap-2">
               {property.features.map((feature, index) => (
                 <span
                   key={index}
-                  className="text-xs font-medium bg-gray-50 text-gray-600 px-3 py-1.5 rounded-full border border-gray-200"
+                  className="text-xs font-medium bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full"
                 >
                   {feature}
                 </span>
@@ -181,14 +223,14 @@ export function PropertyDetail() {
         )}
 
         {/* Agent Section */}
-        <div className="bg-white rounded-2xl p-5 border border-gray-200">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">👤 Agent</h3>
+        <div className="bg-white rounded-2xl p-4 border border-gray-200">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Agent</h3>
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-lg flex-shrink-0">
               {property.users?.name?.charAt(0) || 'A'}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-gray-800">
+            <div>
+              <p className="text-sm font-semibold text-gray-800">
                 {property.users?.name || 'Agent'}
               </p>
               {property.users?.is_verified_agent && (
@@ -198,21 +240,28 @@ export function PropertyDetail() {
                 </p>
               )}
               <p className="text-xs text-gray-400 mt-0.5">
-                📞 {property.users?.whatsapp_number || 'No phone number'}
+                {property.users?.whatsapp_number || 'No phone number'}
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Fixed Bottom WhatsApp Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
-        <div className="max-w-3xl mx-auto">
+      {/* Fixed Bottom Action Buttons */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-lg">
+        <div className="max-w-3xl mx-auto flex gap-3">
+          <button
+            onClick={handleCall}
+            className="flex-1 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 py-3 rounded-xl font-medium text-sm hover:bg-gray-200 transition"
+          >
+            <Phone size={18} />
+            Call
+          </button>
           <button
             onClick={handleWhatsApp}
-            className="w-full flex items-center justify-center gap-2 bg-emerald-500 text-white py-3.5 rounded-xl font-semibold text-base hover:bg-emerald-600 transition shadow-lg hover:shadow-xl"
+            className="flex-[2] flex items-center justify-center gap-2 bg-emerald-500 text-white py-3 rounded-xl font-semibold text-sm hover:bg-emerald-600 transition shadow-lg hover:shadow-xl"
           >
-            <MessageCircle size={20} />
+            <MessageCircle size={18} />
             Chat on WhatsApp
           </button>
         </div>
@@ -242,7 +291,12 @@ export function PropertyDetail() {
               }}
             />
             
-            {/* Image Navigation Dots in Fullscreen */}
+            {images.length > 1 && (
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-medium">
+                {currentImageIndex + 1} / {images.length}
+              </div>
+            )}
+            
             {images.length > 1 && (
               <div 
                 className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2"
@@ -252,7 +306,7 @@ export function PropertyDetail() {
                   <button
                     key={index}
                     onClick={() => setCurrentImageIndex(index)}
-                    className={`w-3 h-3 rounded-full transition ${
+                    className={`w-2.5 h-2.5 rounded-full transition ${
                       index === currentImageIndex ? 'bg-white' : 'bg-white/30'
                     }`}
                   />
