@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { Search, SlidersHorizontal, X } from 'lucide-react'
-import { FilterDrawer } from './FilterDrawer'
 
 const AREAS = ['All', 'Gwarinpa', 'Wuse II', 'Maitama', 'Jabi', 'Lugbe', 'Asokoro', 'Garki']
 
-export function FilterBar({ activeArea, setActiveArea, filters, setFilters }) {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+export function FilterBar({ activeArea, setActiveArea, filters, setFilters, onOpenFilterDrawer }) {
+  const [searchQuery, setSearchQuery] = useState('')
 
   const clearFilter = (key) => {
     const newFilters = { ...filters }
@@ -13,22 +12,88 @@ export function FilterBar({ activeArea, setActiveArea, filters, setFilters }) {
     setFilters(newFilters)
   }
 
+  const getActiveFilterCount = () => {
+    let count = 0
+    if (filters.minPrice) count++
+    if (filters.maxPrice) count++
+    if (filters.bedrooms) count++
+    return count
+  }
+
+  const filterCount = getActiveFilterCount()
+
+  // Filter areas based on search query
+  const filteredAreas = AREAS.filter(area =>
+    area.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
   return (
-    <div className="sticky top-[56px] z-40 bg-white border-b border-gray-100">
+    <div className="sticky top-[56px] z-40 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Primary Areas - Light green active */}
-        <div className="py-3">
+        {/* Search Bar */}
+        <div className="py-2.5 flex justify-center">
+          <div className="relative w-64 sm:w-80">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search area..."
+              style={{ fontSize: '16px' }}
+              className="w-full pl-8 pr-3 py-1.5 text-xs font-normal bg-gray-50/80 border border-gray-100 rounded-full focus:outline-none focus:ring-1 focus:ring-[#6C4DFF]/30 focus:border-[#6C4DFF]/30 placeholder:text-gray-400 placeholder:text-xs"
+            />
+          </div>
+        </div>
+
+        {/* Secondary Filters */}
+        <div className="pb-2.5 flex flex-wrap gap-1.5 items-center">
+          <button
+            onClick={() => {
+              console.log('🔵 Opening filter drawer from FilterBar')
+              onOpenFilterDrawer()
+            }}
+            className="flex items-center gap-1 px-2.5 py-1 bg-gray-50 border border-gray-200 text-gray-700 rounded-full text-[11px] font-semibold hover:bg-[#F7F4FF] hover:border-[#DDD4FF] transition"
+          >
+            <SlidersHorizontal size={13} />
+            Filters
+            {filterCount > 0 && (
+              <span className="w-1.5 h-1.5 bg-[#6C4DFF] rounded-full" />
+            )}
+          </button>
+
+          {/* Quick filter pills */}
+          {filters.minPrice && (
+            <div className="flex items-center gap-0.5 px-2.5 py-1 bg-[#EFE9FF] text-[#6C4DFF] border border-[#DDD4FF] rounded-full text-[10px] font-bold">
+              ₦{filters.minPrice?.toLocaleString()} - ₦{filters.maxPrice?.toLocaleString()}
+              <button onClick={() => clearFilter('minPrice')} className="text-[#6C4DFF] hover:text-[#5A3EF5] transition ml-0.5">
+                <X size={12} />
+              </button>
+            </div>
+          )}
+
+          {filters.bedrooms && (
+            <div className="flex items-center gap-0.5 px-2.5 py-1 bg-[#EFE9FF] text-[#6C4DFF] border border-[#DDD4FF] rounded-full text-[10px] font-bold">
+              {filters.bedrooms} bed{filters.bedrooms > 1 ? 's' : ''}
+              <button onClick={() => clearFilter('bedrooms')} className="text-[#6C4DFF] hover:text-[#5A3EF5] transition ml-0.5">
+                <X size={12} />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Primary Areas */}
+        <div className="pb-2.5">
           <div className="overflow-x-auto scrollbar-hide">
-            <div className="flex gap-2 min-w-max">
-              {AREAS.map((area) => (
+            <div className="flex gap-1.5 min-w-max">
+              {filteredAreas.map((area) => (
                 <button
                   key={area}
                   onClick={() => setActiveArea(area)}
                   className={`
-                    px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200
+                    px-3 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all duration-200
                     ${activeArea === area 
-                      ? 'bg-emerald-100 text-emerald-700' 
-                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}
+                      ? 'bg-[#EFE9FF] text-[#6C4DFF] border border-[#DDD4FF]' 
+                      : 'bg-white text-gray-500 border border-gray-200 hover:bg-[#F7F4FF]'}
                   `}
                 >
                   {area}
@@ -37,52 +102,6 @@ export function FilterBar({ activeArea, setActiveArea, filters, setFilters }) {
             </div>
           </div>
         </div>
-
-        {/* Secondary Filters */}
-        <div className="pb-3 flex flex-wrap gap-2 items-center">
-          <button
-            onClick={() => setIsDrawerOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-600 rounded-full text-sm font-medium hover:bg-gray-200 transition"
-          >
-            <SlidersHorizontal size={14} />
-            Filters
-            {(filters.minPrice || filters.maxPrice || filters.bedrooms) && (
-              <span className="w-2 h-2 bg-emerald-500 rounded-full" />
-            )}
-          </button>
-
-          {/* Quick filter pills */}
-          {filters.minPrice && (
-            <div className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full text-sm">
-              ₦{filters.minPrice?.toLocaleString()} - ₦{filters.maxPrice?.toLocaleString()}
-              <button onClick={() => clearFilter('minPrice')} className="text-emerald-400 hover:text-emerald-600">
-                <X size={14} />
-              </button>
-            </div>
-          )}
-
-          {filters.bedrooms && (
-            <div className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full text-sm">
-              {filters.bedrooms} bed{filters.bedrooms > 1 ? 's' : ''}
-              <button onClick={() => clearFilter('bedrooms')} className="text-emerald-400 hover:text-emerald-600">
-                <X size={14} />
-              </button>
-            </div>
-          )}
-
-          <div className="flex-1" />
-          
-          <button className="p-2 text-gray-400 hover:text-gray-600 transition">
-            <Search size={20} />
-          </button>
-        </div>
-
-        <FilterDrawer 
-          isOpen={isDrawerOpen} 
-          onClose={() => setIsDrawerOpen(false)}
-          filters={filters}
-          setFilters={setFilters}
-        />
       </div>
     </div>
   )

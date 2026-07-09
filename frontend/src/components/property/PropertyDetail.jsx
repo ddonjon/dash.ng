@@ -60,7 +60,7 @@ export function PropertyDetail() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <div className="w-12 h-12 border-4 border-[#6C4DFF] border-t-transparent rounded-full animate-spin mx-auto"></div>
           <p className="text-gray-500 mt-4">Loading property...</p>
         </div>
       </div>
@@ -76,7 +76,7 @@ export function PropertyDetail() {
           <p className="text-gray-400 mt-1 text-sm">{error || 'The property you\'re looking for doesn\'t exist.'}</p>
           <button 
             onClick={() => navigate('/')}
-            className="mt-4 px-6 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition"
+            className="mt-4 px-6 py-2.5 bg-[#6C4DFF] text-white rounded-lg font-medium hover:bg-[#5A3EF5] transition"
           >
             Back to listings
           </button>
@@ -147,13 +147,13 @@ export function PropertyDetail() {
         {/* Price */}
         <div className="flex items-center justify-between mb-2">
           <div>
-            <span className="text-lg font-bold text-emerald-600">
+            <span className="text-lg font-bold text-[#6C4DFF]">
               {formatPrice(property.price)}
             </span>
             <span className="text-xs text-gray-400 ml-1.5 font-medium">/ annum</span>
           </div>
           {property.users?.is_verified_agent && (
-            <span className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">
+            <span className="flex items-center gap-1 text-xs text-[#6C4DFF] bg-[#EFE9FF] px-2.5 py-0.5 rounded-full border border-[#DDD4FF]">
               <CheckCircle size={12} />
               Verified
             </span>
@@ -170,7 +170,7 @@ export function PropertyDetail() {
           <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
             <p className="text-xs text-gray-400">Location</p>
             <p className="text-sm font-medium text-gray-700 flex items-center gap-1">
-              <MapPin size={14} className="text-emerald-500" />
+              <MapPin size={14} className="text-gray-400" />
               {property.area}
             </p>
           </div>
@@ -190,8 +190,8 @@ export function PropertyDetail() {
           </div>
           <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
             <p className="text-xs text-gray-400">Status</p>
-            <p className="text-sm font-medium text-emerald-600 flex items-center gap-1">
-              <Clock size={14} />
+            <p className="text-sm font-medium text-[#6C4DFF] flex items-center gap-1">
+              <Clock size={14} className="text-[#6C4DFF]" />
               Available
             </p>
           </div>
@@ -205,7 +205,7 @@ export function PropertyDetail() {
           </p>
         </div>
 
-        {/* Features */}
+        {/* Features - Grey badges */}
         {property.features?.length > 0 && (
           <div className="mb-5">
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Features & Amenities</h3>
@@ -213,7 +213,7 @@ export function PropertyDetail() {
               {property.features.map((feature, index) => (
                 <span
                   key={index}
-                  className="text-xs font-medium bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full"
+                  className="text-xs font-medium bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full border border-gray-200"
                 >
                   {feature}
                 </span>
@@ -226,7 +226,7 @@ export function PropertyDetail() {
         <div className="bg-white rounded-2xl p-4 border border-gray-200">
           <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Agent</h3>
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-lg flex-shrink-0">
+            <div className="w-12 h-12 rounded-full bg-[#6C4DFF] text-white flex items-center justify-center font-bold text-lg flex-shrink-0">
               {property.users?.name?.charAt(0) || 'A'}
             </div>
             <div>
@@ -234,7 +234,7 @@ export function PropertyDetail() {
                 {property.users?.name || 'Agent'}
               </p>
               {property.users?.is_verified_agent && (
-                <p className="text-xs text-emerald-600 flex items-center gap-1">
+                <p className="text-xs text-[#6C4DFF] flex items-center gap-1">
                   <CheckCircle size={12} />
                   Verified Agent
                 </p>
@@ -259,7 +259,7 @@ export function PropertyDetail() {
           </button>
           <button
             onClick={handleWhatsApp}
-            className="flex-[2] flex items-center justify-center gap-2 bg-emerald-500 text-white py-3 rounded-xl font-semibold text-sm hover:bg-emerald-600 transition shadow-lg hover:shadow-xl"
+            className="flex-[2] flex items-center justify-center gap-2 bg-[#25D366] text-white py-3 rounded-xl font-semibold text-sm hover:bg-[#20BD5A] transition shadow-lg shadow-[#25D366]/25"
           >
             <MessageCircle size={18} />
             Chat on WhatsApp
