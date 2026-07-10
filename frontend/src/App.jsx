@@ -5,12 +5,15 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { HeaderUI } from './components/layout/HeaderUI'
 import { DrawerMenu } from './components/layout/DrawerMenu'
+import { ProfileLayout } from './components/layout/ProfileLayout'
+import { ProfileDebug } from './components/profile/ProfileDebug'
 import { FilterBar } from './components/filters/FilterBar'
 import { FilterDrawer } from './components/filters/FilterDrawer'
 import { PropertyFeed } from './components/property/PropertyFeed'
 import { PropertyDetail } from './components/property/PropertyDetail'
 import { ListProperty } from './components/property/ListProperty'
-import { Profile } from './components/profile/Profile'
+import { MyListings } from './components/property/MyListings'
+import { EditProperty } from './components/property/EditProperty'
 import { SignIn } from './components/auth/SignIn'
 import { SignUp } from './components/auth/SignUp'
 import './App.css'
@@ -54,16 +57,18 @@ function AppContent() {
   const [showSignIn, setShowSignIn] = useState(false)
   const [showSignUp, setShowSignUp] = useState(false)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
-    const path = window.location.pathname
-    if (path === '/list-property' && !user) {
-      setShowSignIn(true)
-      navigate('/')
+    if (!loading) {
+      const path = window.location.pathname
+      if ((path === '/list-property' || path === '/my-listings' || path === '/edit-property') && !user) {
+        setShowSignIn(true)
+        navigate('/')
+      }
     }
-  }, [user, navigate])
+  }, [user, navigate, loading])
 
   const openSignIn = () => {
     setShowSignUp(false)
@@ -86,7 +91,6 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Blurrable content - Header UI + everything else */}
       <div className={`transition-all duration-300 ${isDrawerOpen ? 'blur-sm' : ''}`}>
         <HeaderUI 
           onSignIn={openSignIn}
@@ -99,12 +103,27 @@ function AppContent() {
             <Route path="/property/:id" element={<PropertyDetail />} />
             <Route path="/profile" element={
               <ProtectedRoute>
-                <Profile />
+                <ProfileLayout />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile-debug" element={
+              <ProtectedRoute>
+                <ProfileDebug />
               </ProtectedRoute>
             } />
             <Route path="/list-property" element={
               <ProtectedRoute>
                 <ListProperty />
+              </ProtectedRoute>
+            } />
+            <Route path="/my-listings" element={
+              <ProtectedRoute>
+                <MyListings />
+              </ProtectedRoute>
+            } />
+            <Route path="/edit-property/:id" element={
+              <ProtectedRoute>
+                <EditProperty />
               </ProtectedRoute>
             } />
             <Route path="/sign-in" element={<Navigate to="/" replace />} />
@@ -113,7 +132,6 @@ function AppContent() {
         </div>
       </div>
       
-      {/* DrawerMenu - OUTSIDE the blur */}
       <DrawerMenu 
         isOpen={isDrawerOpen} 
         onClose={() => handleDrawerToggle(false)}

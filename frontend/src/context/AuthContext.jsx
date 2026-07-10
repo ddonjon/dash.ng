@@ -8,6 +8,40 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  const createUserProfile = async (userId, userData) => {
+    try {
+      // Check if profile already exists
+      const { data: existing, error: checkError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', userId)
+        .single()
+
+      if (existing) {
+        // Profile already exists
+        return existing
+      }
+
+      // Create new profile
+      const { data, error } = await supabase
+        .from('users')
+        .insert([{
+          id: userId,
+          name: userData?.full_name || userData?.email?.split('@')[0] || 'User',
+          whatsapp_number: userData?.phone || '',
+          location: ''
+        }])
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    } catch (error) {
+      console.error('Error creating user profile:', error)
+      return null
+    }
+  }
+
   const fetchProfile = async (userId) => {
     try {
       const { data, error } = await supabase
@@ -15,10 +49,24 @@ export function AuthProvider({ children }) {
         .select('*')
         .eq('id', userId)
         .single()
-      if (error) throw error
+      
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // Profile doesn't exist, create it
+          const newProfile = await createUserProfile(userId, {
+            email: user?.email,
+            full_name: user?.user_metadata?.full_name
+          })
+          setProfile(newProfile)
+          return
+        }
+        throw error
+      }
+      
       setProfile(data)
     } catch (error) {
       console.error('Error fetching profile:', error)
+      setProfile(null)
     } finally {
       setLoading(false)
     }

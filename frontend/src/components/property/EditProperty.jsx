@@ -4,14 +4,13 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { 
-  ArrowLeft, Upload, X, Loader2, AlertCircle, Search, ChevronDown, CheckCircle, Save
+  ArrowLeft, Upload, X, Loader2, AlertCircle, Search, ChevronDown, Trash2
 } from 'lucide-react'
 import { supabase } from '../../services/supabase'
 import { getAreas } from '../../services/properties'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const MAX_FILES = 5
-const MIN_FILES = 3
 const ALLOWED_MIME_TYPES = [
   'image/jpeg', 'image/png', 'image/webp', 'image/gif',
   'image/svg+xml', 'image/heic', 'image/heif'
@@ -82,7 +81,7 @@ const propertySchema = z.object({
   price: z.string().min(1, 'Please enter a price'),
   pricePeriod: z.string().min(1, 'Please select pricing period'),
   bedrooms: z.string().min(1, 'Please select number of bedrooms'),
-  features: z.array(z.string()).optional(),
+  features: z.array(z.string()).min(1, 'Please select at least one feature'),
 })
 
 const AVAILABLE_FEATURES = [
@@ -106,24 +105,20 @@ const AVAILABLE_FEATURES = [
 
 const BEDROOM_OPTIONS = [1, 2, 3, 4, 5, 6]
 
-export function ListProperty() {
-  const navigate = useNavigate()
+export function EditProperty() {
   const { id } = useParams()
-  const isEditMode = !!id
-  
+  const navigate = useNavigate()
   const [areas, setAreas] = useState([])
   const [selectedFeatures, setSelectedFeatures] = useState([])
-  const [images, setImages] = useState([])
   const [existingImages, setExistingImages] = useState([])
-  const [uploadingImages, setUploadingImages] = useState(false)
+  const [newImages, setNewImages] = useState([])
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(null)
   const [user, setUser] = useState(null)
-  const [userProfile, setUserProfile] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [propertyStatus, setPropertyStatus] = useState('draft')
+  const [deletingImages, setDeletingImages] = useState([])
   
   // Search dropdown states
   const [isAreaDropdownOpen, setIsAreaDropdownOpen] = useState(false)
@@ -145,16 +140,6 @@ export function ListProperty() {
   })
 
   const selectedArea = watch('area')
-
-  // Auto-dismiss success message after 3 seconds
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => {
-        setSuccess(null)
-      }, 3000)
-      return () => clearTimeout(timer)
-    }
-  }, [success])
 
   // Filter areas based on search term
   useEffect(() => {
@@ -187,15 +172,12 @@ export function ListProperty() {
   }, [])
 
   useEffect(() => {
-    checkUserAndProfile()
+    checkUser()
+    loadProperty()
     loadAreas()
-    if (isEditMode) {
-      loadPropertyForEdit()
-    }
   }, [id])
 
-  const checkUserAndProfile = async () => {
-    setLoading(true)
+  const checkUser = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
@@ -203,45 +185,14 @@ export function ListProperty() {
         return
       }
       setUser(user)
-
-      // Check if user profile exists
-      const { data: profile, error: profileError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-
-      if (profileError || !profile) {
-        // Create user profile if it doesn't exist
-        const { data: newProfile, error: createError } = await supabase
-          .from('users')
-          .insert([{
-            id: user.id,
-            name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
-            whatsapp_number: user.phone || '',
-            location: ''
-          }])
-          .select()
-          .single()
-
-        if (createError) {
-          console.error('Error creating user profile:', createError)
-          setError('Failed to create user profile. Please try again.')
-          return
-        }
-        setUserProfile(newProfile)
-      } else {
-        setUserProfile(profile)
-      }
     } catch (err) {
       console.error('Error checking user:', err)
-      setError('Failed to load user profile')
-    } finally {
-      setLoading(false)
+      navigate('/')
     }
   }
 
-  const loadPropertyForEdit = async () => {
+  const loadProperty = async () => {
+    setLoading(true)
     try {
       const { data, error } = await supabase
         .from('properties')
@@ -261,9 +212,6 @@ export function ListProperty() {
         return
       }
 
-      setPropertyStatus(data.status || 'draft')
-      setExistingImages(data.media_urls || [])
-
       // Populate form
       reset({
         title: data.title,
@@ -276,9 +224,12 @@ export function ListProperty() {
       })
 
       setSelectedFeatures(data.features || [])
+      setExistingImages(data.media_urls || [])
     } catch (err) {
       console.error('Error loading property:', err)
       setError('Failed to load property details')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -301,22 +252,10 @@ export function ListProperty() {
     })
   }
 
-  // Format price with commas
-  const formatPriceWithCommas = (value) => {
-    const digits = value.replace(/\D/g, '')
-    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-  }
-
-  const handlePriceChange = (e) => {
-    const formatted = formatPriceWithCommas(e.target.value)
-    setValue('price', formatted)
-  }
-
   const validateFiles = (files) => {
     const errors = []
-    const totalAfterAdd = images.length + files.length
-    if (totalAfterAdd > MAX_FILES) {
-      errors.push(`Maximum ${MAX_FILES} images allowed. You can add ${MAX_FILES - images.length} more.`)
+    if (existingImages.length + newImages.length + files.length > MAX_FILES) {
+      errors.push(`Maximum ${MAX_FILES} images allowed. You can add ${MAX_FILES - existingImages.length - newImages.length} more.`)
     }
     const oversized = files.filter(file => file.size > MAX_FILE_SIZE)
     if (oversized.length > 0) {
@@ -331,32 +270,6 @@ export function ListProperty() {
     return errors
   }
 
-  const uploadSingleImage = async (file, index) => {
-    const fileName = `${Date.now()}_${index}_${file.name.replace(/\s/g, '_')}`
-    const filePath = `properties/${user.id}/${fileName}`
-
-    const { error: uploadError } = await supabase.storage
-      .from('property-images')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false,
-        contentType: file.type
-      })
-
-    if (uploadError) {
-      if (uploadError.message.includes('too large')) {
-        throw new Error(`Image "${file.name}" exceeds Supabase's global file size limit (50MB)`)
-      }
-      throw new Error(`Failed to upload image "${file.name}": ${uploadError.message}`)
-    }
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('property-images')
-      .getPublicUrl(filePath)
-
-    return publicUrl
-  }
-
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files)
     if (files.length === 0) return
@@ -368,46 +281,20 @@ export function ListProperty() {
       return
     }
 
-    const remaining = MAX_FILES - images.length
+    const remaining = MAX_FILES - existingImages.length - newImages.length
     const toUpload = files.slice(0, remaining)
 
     const previews = toUpload.map(file => ({
       file,
       preview: URL.createObjectURL(file),
-      uploading: true,
-      url: null
+      uploading: true
     }))
-    setImages(prev => [...prev, ...previews])
+    setNewImages(prev => [...prev, ...previews])
     setError(null)
     e.target.value = ''
-
-    setUploadingImages(true)
-    
-    for (let i = 0; i < previews.length; i++) {
-      const previewIndex = images.length + i
-      try {
-        const url = await uploadSingleImage(toUpload[i], i)
-        setImages(prev => {
-          const updated = [...prev]
-          if (updated[previewIndex]) {
-            updated[previewIndex] = {
-              ...updated[previewIndex],
-              uploading: false,
-              url: url
-            }
-          }
-          return updated
-        })
-      } catch (err) {
-        console.error('Upload failed:', err)
-        setError(`Failed to upload ${toUpload[i].name}: ${err.message}`)
-        setImages(prev => prev.filter((_, idx) => idx !== previewIndex))
-      }
-    }
-    setUploadingImages(false)
   }
 
-  const handleDrop = async (e) => {
+  const handleDrop = (e) => {
     e.preventDefault()
     setIsDragging(false)
     const files = Array.from(e.dataTransfer.files)
@@ -419,41 +306,16 @@ export function ListProperty() {
       return
     }
 
-    const remaining = MAX_FILES - images.length
+    const remaining = MAX_FILES - existingImages.length - newImages.length
     const toUpload = files.slice(0, remaining)
 
     const previews = toUpload.map(file => ({
       file,
       preview: URL.createObjectURL(file),
-      uploading: true,
-      url: null
+      uploading: true
     }))
-    setImages(prev => [...prev, ...previews])
+    setNewImages(prev => [...prev, ...previews])
     setError(null)
-
-    setUploadingImages(true)
-    for (let i = 0; i < previews.length; i++) {
-      const previewIndex = images.length + i
-      try {
-        const url = await uploadSingleImage(toUpload[i], i)
-        setImages(prev => {
-          const updated = [...prev]
-          if (updated[previewIndex]) {
-            updated[previewIndex] = {
-              ...updated[previewIndex],
-              uploading: false,
-              url: url
-            }
-          }
-          return updated
-        })
-      } catch (err) {
-        console.error('Upload failed:', err)
-        setError(`Failed to upload ${toUpload[i].name}: ${err.message}`)
-        setImages(prev => prev.filter((_, idx) => idx !== previewIndex))
-      }
-    }
-    setUploadingImages(false)
   }
 
   const handleDragOver = (e) => {
@@ -466,8 +328,12 @@ export function ListProperty() {
     setIsDragging(false)
   }
 
-  const removeImage = (index) => {
-    setImages(prev => {
+  const removeExistingImage = (index) => {
+    setExistingImages(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const removeNewImage = (index) => {
+    setNewImages(prev => {
       const newImages = [...prev]
       if (newImages[index].preview) {
         URL.revokeObjectURL(newImages[index].preview)
@@ -477,88 +343,105 @@ export function ListProperty() {
     })
   }
 
-  const removeExistingImage = (index) => {
-    setExistingImages(prev => prev.filter((_, i) => i !== index))
+  const uploadNewImages = async () => {
+    const imageUrls = []
+    const imagesToUpload = newImages.filter(img => img.uploading)
+
+    for (let i = 0; i < imagesToUpload.length; i++) {
+      const image = imagesToUpload[i]
+      const file = image.file
+      const fileName = `${Date.now()}_${i}_${file.name.replace(/\s/g, '_')}`
+      const filePath = `properties/${user.id}/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('property-images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type
+        })
+
+      if (uploadError) {
+        if (uploadError.message.includes('too large')) {
+          throw new Error(`Image "${file.name}" exceeds Supabase's global file size limit (50MB)`)
+        }
+        throw new Error(`Failed to upload image "${file.name}": ${uploadError.message}`)
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('property-images')
+        .getPublicUrl(filePath)
+
+      imageUrls.push(publicUrl)
+      setUploadProgress(Math.round(((i + 1) / imagesToUpload.length) * 100))
+    }
+
+    return imageUrls
   }
 
-  const saveProperty = async (data, status) => {
-    if (!user || !userProfile) {
-      setError('Please sign in to list a property')
-      return false
+  const deleteImageFromStorage = async (url) => {
+    const path = url.split('/properties/')[1]
+    if (path) {
+      await supabase.storage
+        .from('property-images')
+        .remove([`properties/${path}`])
+    }
+  }
+
+  const onSubmit = async (data) => {
+    if (!user) {
+      setError('Please sign in to edit this property')
+      return
     }
 
     setSubmitting(true)
     setError(null)
+    setUploadProgress(0)
 
     try {
-      const allImages = [...existingImages, ...images.filter(img => img.url).map(img => img.url)]
-      const cleanPrice = data.price.replace(/,/g, '')
+      // Handle image deletions
+      const originalImages = existingImages
+      const imagesToKeep = originalImages.filter(img => !deletingImages.includes(img))
+      
+      // Delete removed images from storage
+      for (const url of deletingImages) {
+        await deleteImageFromStorage(url)
+      }
+
+      // Upload new images
+      let uploadedImageUrls = []
+      if (newImages.some(img => img.uploading)) {
+        uploadedImageUrls = await uploadNewImages()
+      }
+
+      // Combine kept existing images + new uploaded images
+      const newImageUrls = [...imagesToKeep, ...uploadedImageUrls]
 
       const propertyData = {
         title: data.title,
         description: data.description,
         area: data.area,
-        price: parseFloat(cleanPrice),
+        price: parseFloat(data.price),
         price_period: data.pricePeriod,
         bedrooms: parseInt(data.bedrooms),
         features: selectedFeatures,
-        media_urls: allImages,
-        agent_id: userProfile.id,
-        status: status,
+        media_urls: newImageUrls,
         updated_at: new Date().toISOString(),
       }
 
-      let result
-      if (isEditMode) {
-        const { data: updated, error } = await supabase
-          .from('properties')
-          .update(propertyData)
-          .eq('id', id)
-          .select()
-          .single()
-        if (error) throw error
-        result = updated
-      } else {
-        const { data: created, error } = await supabase
-          .from('properties')
-          .insert([propertyData])
-          .select()
-          .single()
-        if (error) throw error
-        result = created
-      }
+      const { error: updateError } = await supabase
+        .from('properties')
+        .update(propertyData)
+        .eq('id', id)
 
-      return result
+      if (updateError) throw updateError
+
+      navigate(`/property/${id}`)
     } catch (err) {
-      console.error('Error saving property:', err)
-      setError(err.message || 'Failed to save property')
-      return false
+      console.error('Error updating property:', err)
+      setError(err.message || 'Failed to update property listing')
     } finally {
       setSubmitting(false)
-    }
-  }
-
-  const onSubmit = async (data, status = 'published') => {
-    // For publishing, check minimum images
-    if (status === 'published') {
-      const uploadedCount = existingImages.length + images.filter(img => img.url).length
-      if (uploadedCount < MIN_FILES) {
-        setError(`Please upload at least ${MIN_FILES} images (${uploadedCount}/${MIN_FILES} uploaded)`)
-        return
-      }
-    }
-
-    const result = await saveProperty(data, status)
-    if (result) {
-      const message = isEditMode 
-        ? status === 'published' ? 'Updated and published' : 'Draft saved'
-        : status === 'published' ? 'Published' : 'Draft saved'
-      
-      setSuccess(message)
-      
-      setTimeout(() => {
-        navigate('/my-listings')
-      }, 1500)
     }
   }
 
@@ -568,13 +451,9 @@ export function ListProperty() {
     setIsAreaDropdownOpen(false)
   }
 
-  const handleGoBack = () => {
-    // Go back to previous page, or fallback to home if no history
-    if (window.history.length > 1) {
-      navigate(-1)
-    } else {
-      navigate('/')
-    }
+  const handleDeleteImage = (url, index) => {
+    setDeletingImages(prev => [...prev, url])
+    removeExistingImage(index)
   }
 
   if (loading) {
@@ -588,7 +467,7 @@ export function ListProperty() {
     )
   }
 
-  const totalUploaded = existingImages.length + images.filter(img => img.url).length
+  const totalImages = existingImages.length + newImages.length
 
   return (
     <div className="min-h-screen bg-white pb-8">
@@ -596,57 +475,27 @@ export function ListProperty() {
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
           <button
             type="button"
-            onClick={handleGoBack}
+            onClick={() => navigate('/my-listings')}
             className="p-2 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl transition-colors shadow-sm"
           >
             <ArrowLeft size={18} className="text-gray-700" />
           </button>
           <div>
-            <h1 className="text-base font-bold text-gray-900 leading-tight">
-              {isEditMode ? 'Edit Property' : 'List Property'}
-            </h1>
-            <p className="text-[10px] text-gray-500 font-medium">
-              {isEditMode ? 'Update your listing details' : 'Add a new property listing'}
-            </p>
+            <h1 className="text-base font-bold text-gray-900 leading-tight">Edit Property</h1>
+            <p className="text-[10px] text-gray-500 font-medium">Update your listing details</p>
           </div>
-          {isEditMode && (
-            <span className={`ml-auto text-[10px] font-medium px-2.5 py-1 rounded-full ${
-              propertyStatus === 'published' 
-                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' 
-                : 'bg-yellow-100 text-yellow-700 border border-yellow-200'
-            }`}>
-              {propertyStatus === 'published' ? 'Published' : 'Draft'}
-            </span>
-          )}
         </div>
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-5">
-        {/* Success Toast - Centered with Light Purple */}
-        {success && (
-          <div className="fixed inset-0 flex items-center justify-center z-[100] pointer-events-none">
-            <div className="bg-[#EFE9FF] border border-[#DDD4FF] text-purple-700 px-8 py-4 rounded-2xl shadow-xl flex items-center gap-3 pointer-events-auto animate-in fade-in zoom-in-95 duration-300">
-              <CheckCircle size={24} className="text-purple-600" />
-              <span className="text-base font-semibold">{success}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Error Message */}
         {error && (
           <div className="bg-red-50 text-red-700 p-3 rounded-xl mb-4 text-sm flex items-start gap-2">
             <AlertCircle size={18} className="flex-shrink-0 mt-0.5" />
             <span className="flex-1">{error}</span>
-            <button 
-              onClick={() => setError(null)} 
-              className="text-red-500 hover:text-red-700 flex-shrink-0"
-            >
-              <X size={16} />
-            </button>
           </div>
         )}
 
-        <form className="space-y-5">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           {/* Title */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">
@@ -828,10 +677,9 @@ export function ListProperty() {
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">₦</span>
               <input
                 {...register('price')}
-                type="text"
+                type="number"
                 placeholder="Enter price"
                 style={{ fontSize: '16px' }}
-                onChange={handlePriceChange}
                 className={`w-full pl-8 pr-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600 bg-white ${
                   errors.price ? 'border-red-500 focus:ring-red-500' : 'border-gray-200'
                 }`}
@@ -870,10 +718,10 @@ export function ListProperty() {
             )}
           </div>
 
-          {/* Features - No asterisk */}
+          {/* Features */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-2">
-              Features
+              Features <span className="text-red-500">*</span>
             </label>
             <div className="flex flex-wrap gap-2">
               {AVAILABLE_FEATURES.map((feature) => (
@@ -892,6 +740,9 @@ export function ListProperty() {
                 </button>
               ))}
             </div>
+            {errors.features && (
+              <p className="text-xs text-red-500 mt-2">{errors.features.message}</p>
+            )}
             <p className="text-xs text-gray-400 mt-2">
               {selectedFeatures.length} features selected
             </p>
@@ -900,11 +751,7 @@ export function ListProperty() {
           {/* Image Upload */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-2">
-              Images ({existingImages.length + images.length} / {MAX_FILES}) 
-              <span className="text-red-500">*</span>
-              <span className="text-xs font-normal text-gray-400 ml-1">
-                (Minimum {MIN_FILES} images required for publishing)
-              </span>
+              Images ({totalImages} / {MAX_FILES})
             </label>
             
             {/* Existing Images */}
@@ -921,7 +768,7 @@ export function ListProperty() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => removeExistingImage(index)}
+                      onClick={() => handleDeleteImage(url, index)}
                       className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg hover:bg-red-600 transition"
                     >
                       <X size={14} />
@@ -932,145 +779,99 @@ export function ListProperty() {
             )}
 
             {/* New Images */}
-            {images.length > 0 && (
+            {newImages.length > 0 && (
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-3">
-                {images.map((image, index) => (
+                {newImages.map((image, index) => (
                   <div key={`new-${index}`} className="relative group">
                     <div className="aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
                       <img
-                        src={image.preview || image.url}
+                        src={image.preview}
                         alt={`Preview ${index + 1}`}
                         className="w-full h-full object-cover"
                       />
-                      {image.uploading && (
-                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
-                          <Loader2 size={24} className="text-white animate-spin" />
-                        </div>
-                      )}
                     </div>
                     <button
                       type="button"
-                      onClick={() => !image.uploading && removeImage(index)}
-                      className={`absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg hover:bg-red-600 transition ${
-                        image.uploading ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                      disabled={image.uploading}
+                      onClick={() => removeNewImage(index)}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg hover:bg-red-600 transition"
                     >
                       <X size={14} />
                     </button>
+                    {image.uploading && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
+                        <Loader2 size={24} className="text-white animate-spin" />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             )}
             
-            <div
-              className={`border-2 border-dashed rounded-xl p-6 text-center transition ${
-                isDragging 
-                  ? 'border-purple-600 bg-[#F7F4FF]' 
-                  : existingImages.length + images.length >= MAX_FILES 
-                    ? 'border-gray-300 opacity-50' 
+            {/* Upload Area */}
+            {totalImages < MAX_FILES && (
+              <div
+                className={`border-2 border-dashed rounded-xl p-6 text-center transition ${
+                  isDragging 
+                    ? 'border-purple-600 bg-[#F7F4FF]' 
                     : 'border-gray-200 hover:border-purple-600'
-              }`}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-            >
-              <input
-                type="file"
-                accept={ALLOWED_MIME_TYPES.join(',')}
-                multiple
-                onChange={handleImageUpload}
-                className="hidden"
-                id="image-upload"
-                disabled={existingImages.length + images.length >= MAX_FILES || uploadingImages}
-              />
-              <label
-                htmlFor="image-upload"
-                className={`cursor-pointer flex flex-col items-center gap-2 ${
-                  existingImages.length + images.length >= MAX_FILES || uploadingImages ? 'cursor-not-allowed' : ''
                 }`}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
               >
-                <Upload size={28} className={`${isDragging ? 'text-purple-600' : 'text-gray-400'}`} />
-                <p className="text-sm text-gray-500">
-                  {existingImages.length + images.length >= MAX_FILES 
-                    ? `Maximum ${MAX_FILES} images uploaded`
-                    : uploadingImages
-                      ? 'Uploading images...'
-                      : isDragging
-                        ? 'Drop images here...'
-                        : 'Tap to upload or drag & drop'
-                  }
-                </p>
-                <p className="text-xs text-gray-400">
-                  {MAX_FILES} images max • 5MB each • JPEG, PNG, WebP, GIF, SVG, HEIC
-                </p>
-                {existingImages.length + images.length < MAX_FILES && !uploadingImages && (
-                  <p className="text-xs text-purple-600">
-                    {MAX_FILES - existingImages.length - images.length} more image{MAX_FILES - existingImages.length - images.length > 1 ? 's' : ''} allowed
+                <input
+                  type="file"
+                  accept={ALLOWED_MIME_TYPES.join(',')}
+                  multiple
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  id="image-upload-edit"
+                />
+                <label
+                  htmlFor="image-upload-edit"
+                  className="cursor-pointer flex flex-col items-center gap-2"
+                >
+                  <Upload size={28} className={`${isDragging ? 'text-purple-600' : 'text-gray-400'}`} />
+                  <p className="text-sm text-gray-500">
+                    {isDragging
+                      ? 'Drop images here...'
+                      : 'Tap to upload or drag & drop'
+                    }
                   </p>
-                )}
-                {uploadingImages && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <Loader2 size={16} className="text-purple-600 animate-spin" />
-                    <span className="text-xs text-purple-600">Uploading...</span>
-                  </div>
-                )}
-              </label>
-            </div>
-
-            {/* Image count indicator */}
-            {totalUploaded > 0 && (
-              <div className="mt-2 flex items-center gap-2">
-                <span className={`text-xs font-medium ${totalUploaded >= MIN_FILES ? 'text-emerald-600' : 'text-gray-500'}`}>
-                  {totalUploaded} / {MIN_FILES} minimum uploaded
-                </span>
-                {totalUploaded >= MIN_FILES && (
-                  <span className="text-emerald-500 text-xs">✓</span>
-                )}
+                  <p className="text-xs text-gray-400">
+                    {MAX_FILES - totalImages} more image{MAX_FILES - totalImages > 1 ? 's' : ''} allowed
+                  </p>
+                </label>
               </div>
             )}
           </div>
 
-          {/* Action Buttons */}
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={handleSubmit((data) => onSubmit(data, 'draft'))}
-              disabled={submitting || uploadingImages}
-              className={`
-                flex-1 py-3 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2
-                ${submitting || uploadingImages
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
-                }
-              `}
+              onClick={() => navigate('/my-listings')}
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition"
             >
-              <Save size={16} />
-              {isEditMode ? 'Update Draft' : 'Save Draft'}
+              Cancel
             </button>
-            
             <button
-              type="button"
-              onClick={handleSubmit((data) => onSubmit(data, 'published'))}
-              disabled={submitting || uploadingImages || images.some(img => img.uploading)}
+              type="submit"
+              disabled={submitting}
               className={`
-                flex-[2] py-3 rounded-xl font-semibold text-sm text-white transition flex items-center justify-center gap-2
-                ${submitting || uploadingImages || images.some(img => img.uploading)
+                flex-1 py-2.5 rounded-xl font-semibold text-sm text-white transition
+                ${submitting 
                   ? 'bg-purple-400 cursor-not-allowed' 
                   : 'bg-purple-600 hover:bg-purple-700 shadow-lg shadow-purple-600/25 hover:shadow-xl'
                 }
               `}
             >
               {submitting ? (
-                <>
+                <span className="flex items-center justify-center gap-2">
                   <Loader2 size={18} className="animate-spin" />
-                  {isEditMode ? 'Updating...' : 'Publishing...'}
-                </>
+                  {uploadProgress > 0 ? `Uploading ${uploadProgress}%` : 'Updating...'}
+                </span>
               ) : (
-                <>
-                  <CheckCircle size={16} />
-                  {isEditMode ? 'Update & Publish' : 'Publish'}
-                </>
+                'Update Property'
               )}
             </button>
           </div>

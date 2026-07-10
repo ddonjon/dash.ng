@@ -22,7 +22,6 @@ export function FilterBar({ activeArea, setActiveArea, filters, setFilters, onOp
 
   const filterCount = getActiveFilterCount()
 
-  // Filter areas based on search query
   const filteredAreas = AREAS.filter(area =>
     area.toLowerCase().includes(searchQuery.toLowerCase())
   )
@@ -40,7 +39,7 @@ export function FilterBar({ activeArea, setActiveArea, filters, setFilters, onOp
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search area..."
               style={{ fontSize: '16px' }}
-              className="w-full pl-8 pr-3 py-1.5 text-xs font-normal bg-gray-50/80 border border-gray-100 rounded-full focus:outline-none focus:ring-1 focus:ring-[#6C4DFF]/30 focus:border-[#6C4DFF]/30 placeholder:text-gray-400 placeholder:text-xs"
+              className="w-full pl-8 pr-3 py-1.5 text-xs font-normal bg-gray-50 border border-gray-200 rounded-full focus:outline-none focus:ring-1 focus:ring-purple-300 focus:border-purple-300 placeholder:text-gray-400 placeholder:text-xs"
             />
           </div>
         </div>
@@ -52,29 +51,29 @@ export function FilterBar({ activeArea, setActiveArea, filters, setFilters, onOp
               console.log('🔵 Opening filter drawer from FilterBar')
               onOpenFilterDrawer()
             }}
-            className="flex items-center gap-1 px-2.5 py-1 bg-gray-50 border border-gray-200 text-gray-700 rounded-full text-[11px] font-semibold hover:bg-[#F7F4FF] hover:border-[#DDD4FF] transition"
+            className="flex items-center gap-1 px-2.5 py-1 bg-gray-100 border border-gray-200 text-gray-700 rounded-full text-[11px] font-semibold hover:bg-gray-200 transition"
           >
             <SlidersHorizontal size={13} />
             Filters
             {filterCount > 0 && (
-              <span className="w-1.5 h-1.5 bg-[#6C4DFF] rounded-full" />
+              <span className="w-1.5 h-1.5 bg-purple-400 rounded-full" />
             )}
           </button>
 
           {/* Quick filter pills */}
           {filters.minPrice && (
-            <div className="flex items-center gap-0.5 px-2.5 py-1 bg-[#EFE9FF] text-[#6C4DFF] border border-[#DDD4FF] rounded-full text-[10px] font-bold">
+            <div className="flex items-center gap-0.5 px-2.5 py-1 bg-purple-100 text-purple-700 border border-purple-200 rounded-full text-[10px] font-bold">
               ₦{filters.minPrice?.toLocaleString()} - ₦{filters.maxPrice?.toLocaleString()}
-              <button onClick={() => clearFilter('minPrice')} className="text-[#6C4DFF] hover:text-[#5A3EF5] transition ml-0.5">
+              <button onClick={() => clearFilter('minPrice')} className="text-purple-400 hover:text-purple-600 transition ml-0.5">
                 <X size={12} />
               </button>
             </div>
           )}
 
           {filters.bedrooms && (
-            <div className="flex items-center gap-0.5 px-2.5 py-1 bg-[#EFE9FF] text-[#6C4DFF] border border-[#DDD4FF] rounded-full text-[10px] font-bold">
+            <div className="flex items-center gap-0.5 px-2.5 py-1 bg-purple-100 text-purple-700 border border-purple-200 rounded-full text-[10px] font-bold">
               {filters.bedrooms} bed{filters.bedrooms > 1 ? 's' : ''}
-              <button onClick={() => clearFilter('bedrooms')} className="text-[#6C4DFF] hover:text-[#5A3EF5] transition ml-0.5">
+              <button onClick={() => clearFilter('bedrooms')} className="text-purple-400 hover:text-purple-600 transition ml-0.5">
                 <X size={12} />
               </button>
             </div>
@@ -92,8 +91,8 @@ export function FilterBar({ activeArea, setActiveArea, filters, setFilters, onOp
                   className={`
                     px-3 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all duration-200
                     ${activeArea === area 
-                      ? 'bg-[#EFE9FF] text-[#6C4DFF] border border-[#DDD4FF]' 
-                      : 'bg-white text-gray-500 border border-gray-200 hover:bg-[#F7F4FF]'}
+                      ? 'bg-purple-100 text-purple-700 border border-purple-200' 
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}
                   `}
                 >
                   {area}

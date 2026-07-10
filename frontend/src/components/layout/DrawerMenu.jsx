@@ -1,41 +1,18 @@
-import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { 
   X, Home, PlusCircle, User, Heart, LogIn, LogOut, 
   ChevronRight, FileText, LayoutDashboard, Settings,
-  BarChart3, Star, Bell, HelpCircle, ShieldCheck
+  BarChart3, Star, Bell, HelpCircle, ShieldCheck, Mail, Phone
 } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../services/supabase'
 
 export function DrawerMenu({ isOpen, onClose, onSignIn, onSignUp }) {
   const navigate = useNavigate()
-  const [user, setUser] = useState(null)
-  const [profile, setProfile] = useState(null)
-
-  useEffect(() => {
-    if (isOpen) {
-      checkUser()
-    }
-  }, [isOpen])
-
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    setUser(user)
-    
-    if (user) {
-      const { data } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-      setProfile(data)
-    }
-  }
+  const { user, profile } = useAuth()
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
-    setUser(null)
-    setProfile(null)
     onClose()
     navigate('/')
   }
@@ -55,13 +32,11 @@ export function DrawerMenu({ isOpen, onClose, onSignIn, onSignUp }) {
     onSignUp()
   }
 
-  // Main navigation items
   const mainItems = [
     { icon: Home, label: 'Home', path: '/' },
     { icon: PlusCircle, label: 'List Property', path: '/list-property' },
   ]
 
-  // Account section items (when logged in)
   const accountItems = [
     { icon: User, label: 'Profile', path: '/profile' },
     { icon: FileText, label: 'My Listings', path: '/my-listings' },
@@ -69,7 +44,6 @@ export function DrawerMenu({ isOpen, onClose, onSignIn, onSignUp }) {
     { icon: Bell, label: 'Notifications', path: '/notifications' },
   ]
 
-  // Settings section items
   const settingsItems = [
     { icon: Settings, label: 'Settings', path: '/settings' },
     { icon: HelpCircle, label: 'Help & FAQ', path: '/faq' },
@@ -91,41 +65,69 @@ export function DrawerMenu({ isOpen, onClose, onSignIn, onSignUp }) {
           ${isOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}
         `}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[#6C4DFF] flex items-center justify-center">
-              <span className="text-white font-bold text-lg">D</span>
+        {/* Header with User Info and Close Button */}
+        <div className="p-4 border-b border-gray-100 bg-gray-50/30">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              {user && profile ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-purple-600 text-white flex items-center justify-center font-semibold text-lg shadow-lg shadow-purple-600/20 flex-shrink-0">
+                    {profile.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-800 text-sm truncate">
+                      {profile.name || user.email}
+                    </p>
+                    <p className="text-xs text-gray-400 truncate flex items-center gap-1">
+                      <Mail size={12} className="flex-shrink-0" />
+                      {user.email}
+                    </p>
+                    {profile.whatsapp_number && (
+                      <p className="text-xs text-gray-400 truncate flex items-center gap-1">
+                        <Phone size={12} className="flex-shrink-0" />
+                        {profile.whatsapp_number}
+                      </p>
+                    )}
+                    {profile.is_verified_agent && (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full mt-0.5 border border-purple-200">
+                        <ShieldCheck size={10} />
+                        Verified Agent
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : user ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-purple-600 text-white flex items-center justify-center font-semibold text-lg shadow-lg shadow-purple-600/20 flex-shrink-0">
+                    {user.email?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-800 text-sm truncate">
+                      {user.email}
+                    </p>
+                    <p className="text-xs text-gray-400 truncate flex items-center gap-1">
+                      <Mail size={12} className="flex-shrink-0" />
+                      {user.email}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold text-lg flex-shrink-0">
+                    ?
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-800 text-sm">Guest</p>
+                    <p className="text-xs text-gray-400">Not signed in</p>
+                  </div>
+                </div>
+              )}
             </div>
-            <span className="text-lg font-bold text-gray-800">Dash</span>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition flex-shrink-0 ml-2">
+              <X size={20} className="text-gray-500" />
+            </button>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition">
-            <X size={20} className="text-gray-500" />
-          </button>
         </div>
-
-        {/* User Info */}
-        {user && profile && (
-          <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-[#6C4DFF] text-white flex items-center justify-center font-semibold text-lg shadow-lg shadow-[#6C4DFF]/20">
-                {profile.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
-              </div>
-              <div>
-                <p className="font-semibold text-gray-800">
-                  {profile.name || user.email}
-                </p>
-                <p className="text-xs text-gray-400">{user.email}</p>
-                {profile.is_verified_agent && (
-                  <span className="inline-flex items-center gap-0.5 text-xs text-[#6C4DFF] bg-[#EFE9FF] px-2 py-0.5 rounded-full mt-0.5">
-                    <ShieldCheck size={10} />
-                    Verified Agent
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Menu Sections */}
         <div className="p-3 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
@@ -139,11 +141,11 @@ export function DrawerMenu({ isOpen, onClose, onSignIn, onSignUp }) {
                 <button
                   key={item.path}
                   onClick={() => handleNavigation(item.path)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition group"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition group"
                 >
-                  <item.icon size={18} className="text-gray-400 group-hover:text-[#6C4DFF] transition" />
+                  <item.icon size={18} className="text-gray-400 group-hover:text-purple-600 transition" />
                   <span className="flex-1 text-left font-medium">{item.label}</span>
-                  <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 transition" />
+                  <ChevronRight size={14} className="text-gray-300 group-hover:text-purple-400 transition" />
                 </button>
               ))}
             </div>
@@ -160,11 +162,11 @@ export function DrawerMenu({ isOpen, onClose, onSignIn, onSignUp }) {
                   <button
                     key={item.path}
                     onClick={() => handleNavigation(item.path)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition group"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition group"
                   >
-                    <item.icon size={18} className="text-gray-400 group-hover:text-[#6C4DFF] transition" />
+                    <item.icon size={18} className="text-gray-400 group-hover:text-purple-600 transition" />
                     <span className="flex-1 text-left font-medium">{item.label}</span>
-                    <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 transition" />
+                    <ChevronRight size={14} className="text-gray-300 group-hover:text-purple-400 transition" />
                   </button>
                 ))}
               </div>
@@ -181,11 +183,11 @@ export function DrawerMenu({ isOpen, onClose, onSignIn, onSignUp }) {
                 <button
                   key={item.path}
                   onClick={() => handleNavigation(item.path)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition group"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition group"
                 >
-                  <item.icon size={18} className="text-gray-400 group-hover:text-[#6C4DFF] transition" />
+                  <item.icon size={18} className="text-gray-400 group-hover:text-purple-600 transition" />
                   <span className="flex-1 text-left font-medium">{item.label}</span>
-                  <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 transition" />
+                  <ChevronRight size={14} className="text-gray-300 group-hover:text-purple-400 transition" />
                 </button>
               ))}
             </div>
@@ -213,7 +215,7 @@ export function DrawerMenu({ isOpen, onClose, onSignIn, onSignUp }) {
               </button>
               <button
                 onClick={handleSignUp}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-[#6C4DFF] text-white rounded-lg hover:bg-[#5A3EF5] transition shadow-sm"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition shadow-sm"
               >
                 Sign Up
               </button>

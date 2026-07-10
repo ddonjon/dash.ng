@@ -43,7 +43,6 @@ export function FilterDrawer({ isOpen, onClose, filters, setFilters }) {
     onClose()
   }
 
-  // Price options
   const priceOptions = [
     { label: 'Any Price', min: null, max: null },
     { label: 'Under ₦50M', min: 0, max: 50000000 },
@@ -52,7 +51,6 @@ export function FilterDrawer({ isOpen, onClose, filters, setFilters }) {
     { label: 'Over ₦200M', min: 200000000, max: null },
   ]
 
-  // Bedroom options
   const bedroomOptions = [
     { label: 'Any', value: '' },
     { label: '1 Bed', value: '1' },
@@ -103,7 +101,7 @@ export function FilterDrawer({ isOpen, onClose, filters, setFilters }) {
                     })}
                     className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
                       isPriceActive(range)
-                        ? 'bg-[#EFE9FF] text-[#6C4DFF] border border-[#DDD4FF]'
+                        ? 'bg-purple-100 text-purple-700 border border-purple-200'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                   >
@@ -126,7 +124,7 @@ export function FilterDrawer({ isOpen, onClose, filters, setFilters }) {
                     })}
                     className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
                       localFilters.bedrooms == option.value
-                        ? 'bg-[#EFE9FF] text-[#6C4DFF] border border-[#DDD4FF]'
+                        ? 'bg-purple-100 text-purple-700 border border-purple-200'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                   >
@@ -137,18 +135,18 @@ export function FilterDrawer({ isOpen, onClose, filters, setFilters }) {
             </div>
           </div>
 
-          {/* Footer - Shorter buttons */}
+          {/* Footer */}
           <div className="flex-shrink-0 px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex gap-3">
               <button
                 onClick={handleClear}
-                className="px-5 py-1.5 border-2 border-gray-300 rounded-lg text-xs font-bold text-gray-600 hover:bg-white hover:border-gray-400 transition"
+                className="flex-1 px-4 py-2.5 border-2 border-gray-300 rounded-xl text-sm font-bold text-gray-600 hover:bg-white hover:border-gray-400 transition"
               >
                 Clear All
               </button>
               <button
                 onClick={handleApply}
-                className="px-5 py-1.5 bg-[#6C4DFF] text-white rounded-lg text-xs font-bold hover:bg-[#5A3EF5] transition shadow-sm shadow-[#6C4DFF]/25"
+                className="flex-1 px-4 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-bold hover:bg-purple-700 transition shadow-lg shadow-purple-600/25"
               >
                 Apply Filters
               </button>
