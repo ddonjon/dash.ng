@@ -102,17 +102,17 @@ export function SignUp({ isOpen, onClose, onSwitchToSignIn }) {
         <div className="px-6 pb-6">
           {success ? (
             <div className="text-center py-6">
-              <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-emerald-500/20">
+              <div className="w-14 h-14 bg-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-purple-600/20">
                 <UserPlus size={28} className="text-white" />
               </div>
               <h1 className="text-lg font-bold text-gray-800">Account Created!</h1>
               <p className="text-xs text-gray-500 mt-1">Welcome to Dash</p>
-              <div className="mt-3 w-10 h-1 bg-emerald-500 rounded-full mx-auto animate-pulse" />
+              <div className="mt-3 w-10 h-1 bg-purple-600 rounded-full mx-auto animate-pulse" />
             </div>
           ) : (
             <>
               <div className="text-center mb-5">
-                <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-2 shadow-lg shadow-emerald-500/20">
+                <div className="w-12 h-12 bg-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-2 shadow-lg shadow-purple-600/20">
                   <UserPlus size={24} className="text-white" />
                 </div>
                 <h1 className="text-lg font-bold text-gray-800">Create Account</h1>
@@ -139,7 +139,7 @@ export function SignUp({ isOpen, onClose, onSwitchToSignIn }) {
                       onChange={handleChange}
                       placeholder="John Doe"
                       required
-                      className="w-full pl-9 pr-3 py-2.5 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-gray-50"
+                      className="w-full pl-9 pr-3 py-2.5 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent bg-gray-50"
                     />
                   </div>
                 </div>
@@ -157,7 +157,7 @@ export function SignUp({ isOpen, onClose, onSwitchToSignIn }) {
                       onChange={handleChange}
                       placeholder="you@example.com"
                       required
-                      className="w-full pl-9 pr-3 py-2.5 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-gray-50"
+                      className="w-full pl-9 pr-3 py-2.5 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent bg-gray-50"
                     />
                   </div>
                 </div>
@@ -175,7 +175,7 @@ export function SignUp({ isOpen, onClose, onSwitchToSignIn }) {
                       onChange={handleChange}
                       placeholder="+234 800 000 0000"
                       required
-                      className="w-full pl-9 pr-3 py-2.5 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-gray-50"
+                      className="w-full pl-9 pr-3 py-2.5 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent bg-gray-50"
                     />
                   </div>
                 </div>
@@ -194,7 +194,7 @@ export function SignUp({ isOpen, onClose, onSwitchToSignIn }) {
                       placeholder="•••••••• (min 6)"
                       required
                       minLength={6}
-                      className="w-full pl-9 pr-10 py-2.5 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-gray-50"
+                      className="w-full pl-9 pr-10 py-2.5 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent bg-gray-50"
                     />
                     <button
                       type="button"
@@ -211,8 +211,8 @@ export function SignUp({ isOpen, onClose, onSwitchToSignIn }) {
                   disabled={loading}
                   className={`w-full py-2.5 rounded-xl font-semibold text-sm text-white transition ${
                     loading 
-                      ? 'bg-emerald-400 cursor-not-allowed' 
-                      : 'bg-emerald-500 hover:bg-emerald-600 shadow-lg shadow-emerald-500/25'
+                      ? 'bg-purple-400 cursor-not-allowed' 
+                      : 'bg-purple-600 hover:bg-purple-700 shadow-lg shadow-purple-600/25'
                   }`}
                 >
                   {loading ? 'Creating...' : 'Create Account'}
@@ -223,7 +223,7 @@ export function SignUp({ isOpen, onClose, onSwitchToSignIn }) {
                 Already have an account?{' '}
                 <button
                   onClick={handleSwitchToSignIn}
-                  className="text-emerald-600 font-medium hover:text-emerald-700 transition"
+                  className="text-purple-600 font-medium hover:text-purple-700 transition"
                 >
                   Sign In
                 </button>

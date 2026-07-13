@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { 
   X, Home, PlusCircle, User, Heart, LogIn, LogOut, 
   ChevronRight, FileText, LayoutDashboard, Settings,
-  BarChart3, Star, Bell, HelpCircle, ShieldCheck, Mail, Phone
+  Bell, HelpCircle, ShieldCheck, Mail, Phone, UserCircle
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../services/supabase'
@@ -17,8 +17,12 @@ export function DrawerMenu({ isOpen, onClose, onSignIn, onSignUp }) {
     navigate('/')
   }
 
-  const handleNavigation = (path) => {
+  const handleNavigation = (path, requiresAuth = false) => {
     onClose()
+    if (requiresAuth && !user) {
+      onSignIn()
+      return
+    }
     navigate(path)
   }
 
@@ -33,48 +37,41 @@ export function DrawerMenu({ isOpen, onClose, onSignIn, onSignUp }) {
   }
 
   const mainItems = [
-    { icon: Home, label: 'Home', path: '/' },
-    { icon: PlusCircle, label: 'List Property', path: '/list-property' },
+    { icon: Home, label: 'Home', path: '/', requiresAuth: false },
+    { icon: PlusCircle, label: 'List', path: '/list-property', requiresAuth: true },
   ]
 
   const accountItems = [
-    { icon: User, label: 'Profile', path: '/profile' },
-    { icon: FileText, label: 'My Listings', path: '/my-listings' },
-    { icon: Heart, label: 'Saved', path: '/saved' },
-    { icon: Bell, label: 'Notifications', path: '/notifications' },
+    { icon: User, label: 'Profile', path: '/profile', requiresAuth: true },
+    { icon: FileText, label: 'My Listings', path: '/my-listings', requiresAuth: true },
+    { icon: Heart, label: 'Saved', path: '/saved', requiresAuth: true },
+    { icon: Bell, label: 'Notifications', path: '/notifications', requiresAuth: true },
   ]
 
   const settingsItems = [
-    { icon: Settings, label: 'Settings', path: '/settings' },
-    { icon: HelpCircle, label: 'Help & FAQ', path: '/faq' },
+    { icon: Settings, label: 'Settings', path: '/settings', requiresAuth: true },
+    { icon: HelpCircle, label: 'Help & FAQ', path: '/help', requiresAuth: true },
   ]
 
   return (
     <>
-      {/* Backdrop with fade-in */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/40 z-[200] transition-opacity duration-300"
-          style={{ animation: 'fadeIn 0.3s ease-out' }}
+          className="fixed inset-0 bg-black/40 z-[200]"
           onClick={onClose}
         />
       )}
 
-      {/* Drawer with improved slide animation */}
       <div 
         className={`
           fixed top-0 right-0 h-full w-[320px] max-w-[85vw] bg-white shadow-2xl z-[201]
-          transition-all duration-400 ease-[cubic-bezier(0.22,1,0.36,1)]
+          transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]
           ${isOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}
         `}
-        style={{
-          transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
-          transition: 'transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease'
-        }}
       >
-        {/* Header with User Info and Close Button */}
+        {/* Header with User Info and Close Button - Centered */}
         <div className="p-4 border-b border-gray-100 bg-gray-50/30">
-          <div className="flex items-start justify-between">
+          <div className="flex items-center justify-between">
             <div className="flex-1 min-w-0">
               {user && profile ? (
                 <div className="flex items-center gap-3">
@@ -120,17 +117,22 @@ export function DrawerMenu({ isOpen, onClose, onSignIn, onSignUp }) {
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold text-lg flex-shrink-0">
-                    ?
+                  <div className="w-12 h-12 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center flex-shrink-0">
+                    <UserCircle size={28} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-800 text-sm">Guest</p>
-                    <p className="text-xs text-gray-400">Not signed in</p>
+                    <p className="font-semibold text-gray-800 text-sm">User</p>
+                    <button
+                      onClick={handleSignIn}
+                      className="text-xs text-gray-500 hover:text-gray-700 transition text-left font-medium"
+                    >
+                      Sign in
+                    </button>
                   </div>
                 </div>
               )}
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition flex-shrink-0 ml-2">
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition flex-shrink-0">
               <X size={20} className="text-gray-500" />
             </button>
           </div>
@@ -147,7 +149,7 @@ export function DrawerMenu({ isOpen, onClose, onSignIn, onSignUp }) {
               {mainItems.map((item) => (
                 <button
                   key={item.path}
-                  onClick={() => handleNavigation(item.path)}
+                  onClick={() => handleNavigation(item.path, item.requiresAuth)}
                   className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition group"
                 >
                   <item.icon size={18} className="text-gray-400 group-hover:text-purple-600 transition" />
@@ -158,27 +160,25 @@ export function DrawerMenu({ isOpen, onClose, onSignIn, onSignUp }) {
             </div>
           </div>
 
-          {/* Account Section - Only when logged in */}
-          {user && (
-            <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-3 mb-1">
-                Account
-              </p>
-              <div className="space-y-0.5">
-                {accountItems.map((item) => (
-                  <button
-                    key={item.path}
-                    onClick={() => handleNavigation(item.path)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition group"
-                  >
-                    <item.icon size={18} className="text-gray-400 group-hover:text-purple-600 transition" />
-                    <span className="flex-1 text-left font-medium">{item.label}</span>
-                    <ChevronRight size={14} className="text-gray-300 group-hover:text-purple-400 transition" />
-                  </button>
-                ))}
-              </div>
+          {/* Account Section */}
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-3 mb-1">
+              Account
+            </p>
+            <div className="space-y-0.5">
+              {accountItems.map((item) => (
+                <button
+                  key={item.path}
+                  onClick={() => handleNavigation(item.path, item.requiresAuth)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition group"
+                >
+                  <item.icon size={18} className="text-gray-400 group-hover:text-purple-600 transition" />
+                  <span className="flex-1 text-left font-medium">{item.label}</span>
+                  <ChevronRight size={14} className="text-gray-300 group-hover:text-purple-400 transition" />
+                </button>
+              ))}
             </div>
-          )}
+          </div>
 
           {/* Settings Section */}
           <div>
@@ -189,7 +189,7 @@ export function DrawerMenu({ isOpen, onClose, onSignIn, onSignUp }) {
               {settingsItems.map((item) => (
                 <button
                   key={item.path}
-                  onClick={() => handleNavigation(item.path)}
+                  onClick={() => handleNavigation(item.path, item.requiresAuth)}
                   className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition group"
                 >
                   <item.icon size={18} className="text-gray-400 group-hover:text-purple-600 transition" />
@@ -230,14 +230,6 @@ export function DrawerMenu({ isOpen, onClose, onSignIn, onSignUp }) {
           )}
         </div>
       </div>
-
-      {/* CSS animation for fade-in */}
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-      `}</style>
     </>
   )
 }

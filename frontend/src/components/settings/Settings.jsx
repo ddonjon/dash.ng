@@ -4,7 +4,7 @@ import {
   ArrowLeft, User, Bell, Lock, Globe, 
   LogOut, ChevronRight, MessageCircle,
   Mail, Phone, CircleHelp, FileText, 
-  Trash2, AlertTriangle
+  Trash2, AlertTriangle, HelpCircle
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { EditProfileModal } from '../profile/EditProfileModal'
@@ -65,6 +65,31 @@ export function Settings() {
     }
   }
 
+  // FIXED: This is the same handleSave function from ProfileLayout
+  const handleSave = async (data) => {
+    if (!user) return
+    
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          name: data.name,
+          whatsapp_number: data.whatsapp_number,
+          location: data.location
+        })
+        .eq('id', user.id)
+
+      if (error) throw error
+
+      setShowEditModal(false)
+      // Reload the page to update the auth context
+      window.location.reload()
+    } catch (err) {
+      console.error('Error updating profile:', err)
+      throw err
+    }
+  }
+
   const sections = [
     {
       title: 'Account',
@@ -120,35 +145,23 @@ export function Settings() {
     },
     {
       title: 'Support',
-      icon: CircleHelp,
+      icon: HelpCircle,
       items: [
         {
           label: 'Help Center',
           icon: CircleHelp,
-          onClick: () => alert('Help Center coming soon'),
-          description: 'Get help and support'
+          onClick: () => navigate('/help'),
+          description: 'Browse help articles and guides'
         },
         {
           label: 'FAQ',
           icon: FileText,
-          onClick: () => alert('FAQ coming soon'),
+          onClick: () => navigate('/help'),
           description: 'Frequently asked questions'
-        },
-        {
-          label: 'Contact Support',
-          icon: MessageCircle,
-          onClick: () => alert('Support contact coming soon'),
-          description: 'Get in touch with our team'
         }
       ]
     }
   ]
-
-  const handleItemClick = (item) => {
-    if (item.onClick) {
-      item.onClick()
-    }
-  }
 
   return (
     <>
@@ -299,16 +312,13 @@ export function Settings() {
         </div>
       </div>
 
-      {/* Edit Profile Modal */}
+      {/* Edit Profile Modal - Using the working handleSave function */}
       <EditProfileModal
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
         profile={profile}
         user={user}
-        onSave={async (data) => {
-          console.log('Saving profile:', data)
-          setShowEditModal(false)
-        }}
+        onSave={handleSave}
       />
 
       {/* Change Password Modal */}

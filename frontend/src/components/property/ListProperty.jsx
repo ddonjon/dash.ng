@@ -473,7 +473,7 @@ export function ListProperty() {
         bedrooms: parseInt(data.bedrooms),
         features: selectedFeatures,
         media_urls: imageUrls,
-        agent_id: userProfile.id, // Use the profile ID from users table
+        agent_id: userProfile.id,
         status: status,
       }
 
@@ -546,8 +546,8 @@ export function ListProperty() {
             <ArrowLeft size={18} className="text-gray-700" />
           </button>
           <div>
-            <h1 className="text-base font-bold text-gray-900 leading-tight">List Property</h1>
-            <p className="text-[10px] text-gray-500 font-medium">Add a new property listing</p>
+            <h1 className="text-base font-bold text-gray-900 leading-tight">List</h1>
+            <p className="text-[10px] text-gray-500 font-medium">Add a new listing</p>
           </div>
         </div>
       </div>
