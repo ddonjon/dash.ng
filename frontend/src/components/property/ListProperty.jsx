@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -108,13 +108,9 @@ const BEDROOM_OPTIONS = [1, 2, 3, 4, 5, 6]
 
 export function ListProperty() {
   const navigate = useNavigate()
-  const { id } = useParams()
-  const isEditMode = !!id
-  
   const [areas, setAreas] = useState([])
   const [selectedFeatures, setSelectedFeatures] = useState([])
   const [images, setImages] = useState([])
-  const [existingImages, setExistingImages] = useState([])
   const [uploadingImages, setUploadingImages] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
@@ -123,7 +119,6 @@ export function ListProperty() {
   const [userProfile, setUserProfile] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [propertyStatus, setPropertyStatus] = useState('draft')
   
   // Search dropdown states
   const [isAreaDropdownOpen, setIsAreaDropdownOpen] = useState(false)
@@ -131,7 +126,7 @@ export function ListProperty() {
   const [filteredAreas, setFilteredAreas] = useState(ALL_ABUJA_AREAS)
   const dropdownRef = useRef(null)
 
-  const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm({
+  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm({
     resolver: zodResolver(propertySchema),
     defaultValues: {
       title: '',
@@ -189,10 +184,7 @@ export function ListProperty() {
   useEffect(() => {
     checkUserAndProfile()
     loadAreas()
-    if (isEditMode) {
-      loadPropertyForEdit()
-    }
-  }, [id])
+  }, [])
 
   const checkUserAndProfile = async () => {
     setLoading(true)
@@ -203,6 +195,7 @@ export function ListProperty() {
         return
       }
       setUser(user)
+      console.log('👤 Auth User ID:', user.id)
 
       // Check if user profile exists
       const { data: profile, error: profileError } = await supabase
@@ -230,55 +223,16 @@ export function ListProperty() {
           return
         }
         setUserProfile(newProfile)
+        console.log('✅ Created profile ID:', newProfile.id)
       } else {
         setUserProfile(profile)
+        console.log('✅ Found profile ID:', profile.id)
       }
     } catch (err) {
       console.error('Error checking user:', err)
       setError('Failed to load user profile')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const loadPropertyForEdit = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('properties')
-        .select('*')
-        .eq('id', id)
-        .single()
-
-      if (error) throw error
-      if (!data) {
-        navigate('/my-listings')
-        return
-      }
-
-      // Check if user owns this property
-      if (data.agent_id !== user?.id) {
-        navigate('/my-listings')
-        return
-      }
-
-      setPropertyStatus(data.status || 'draft')
-      setExistingImages(data.media_urls || [])
-
-      // Populate form
-      reset({
-        title: data.title,
-        description: data.description,
-        area: data.area,
-        price: data.price.toString(),
-        pricePeriod: data.price_period || 'annum',
-        bedrooms: data.bedrooms.toString(),
-        features: data.features || [],
-      })
-
-      setSelectedFeatures(data.features || [])
-    } catch (err) {
-      console.error('Error loading property:', err)
-      setError('Failed to load property details')
     }
   }
 
@@ -477,21 +431,37 @@ export function ListProperty() {
     })
   }
 
-  const removeExistingImage = (index) => {
-    setExistingImages(prev => prev.filter((_, i) => i !== index))
-  }
-
-  const saveProperty = async (data, status) => {
+  const onSubmit = async (data, status = 'published') => {
     if (!user || !userProfile) {
       setError('Please sign in to list a property')
-      return false
+      return
+    }
+
+    // For publishing, check minimum images
+    if (status === 'published') {
+      const uploadedCount = images.filter(img => img.url).length
+      if (uploadedCount < MIN_FILES) {
+        setError(`Please upload at least ${MIN_FILES} images (${uploadedCount}/${MIN_FILES} uploaded)`)
+        return
+      }
+    }
+
+    // Check if all images are uploaded
+    const hasUploading = images.some(img => img.uploading)
+    if (hasUploading) {
+      setError('Please wait for all images to finish uploading')
+      return
     }
 
     setSubmitting(true)
     setError(null)
 
     try {
-      const allImages = [...existingImages, ...images.filter(img => img.url).map(img => img.url)]
+      const imageUrls = images
+        .filter(img => img.url)
+        .map(img => img.url)
+
+      // Remove commas from price before saving
       const cleanPrice = data.price.replace(/,/g, '')
 
       const propertyData = {
@@ -502,63 +472,38 @@ export function ListProperty() {
         price_period: data.pricePeriod,
         bedrooms: parseInt(data.bedrooms),
         features: selectedFeatures,
-        media_urls: allImages,
-        agent_id: userProfile.id,
+        media_urls: imageUrls,
+        agent_id: userProfile.id, // Use the profile ID from users table
         status: status,
-        updated_at: new Date().toISOString(),
       }
 
-      let result
-      if (isEditMode) {
-        const { data: updated, error } = await supabase
-          .from('properties')
-          .update(propertyData)
-          .eq('id', id)
-          .select()
-          .single()
-        if (error) throw error
-        result = updated
-      } else {
-        const { data: created, error } = await supabase
-          .from('properties')
-          .insert([propertyData])
-          .select()
-          .single()
-        if (error) throw error
-        result = created
+      console.log('📝 Creating property with agent_id:', userProfile.id)
+
+      const { data: newProperty, error: insertError } = await supabase
+        .from('properties')
+        .insert([propertyData])
+        .select()
+        .single()
+
+      if (insertError) {
+        console.error('Insert error:', insertError)
+        if (insertError.code === '23503') {
+          throw new Error('User profile not found. Please try signing out and signing in again.')
+        }
+        throw insertError
       }
 
-      return result
-    } catch (err) {
-      console.error('Error saving property:', err)
-      setError(err.message || 'Failed to save property')
-      return false
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const onSubmit = async (data, status = 'published') => {
-    // For publishing, check minimum images
-    if (status === 'published') {
-      const uploadedCount = existingImages.length + images.filter(img => img.url).length
-      if (uploadedCount < MIN_FILES) {
-        setError(`Please upload at least ${MIN_FILES} images (${uploadedCount}/${MIN_FILES} uploaded)`)
-        return
-      }
-    }
-
-    const result = await saveProperty(data, status)
-    if (result) {
-      const message = isEditMode 
-        ? status === 'published' ? 'Updated and published' : 'Draft saved'
-        : status === 'published' ? 'Published' : 'Draft saved'
-      
+      const message = status === 'published' ? 'Published' : 'Draft saved'
       setSuccess(message)
       
       setTimeout(() => {
         navigate('/my-listings')
       }, 1500)
+
+    } catch (err) {
+      console.error('Error creating property:', err)
+      setError(err.message || 'Failed to create property listing')
+      setSubmitting(false)
     }
   }
 
@@ -569,7 +514,6 @@ export function ListProperty() {
   }
 
   const handleGoBack = () => {
-    // Go back to previous page, or fallback to home if no history
     if (window.history.length > 1) {
       navigate(-1)
     } else {
@@ -588,7 +532,7 @@ export function ListProperty() {
     )
   }
 
-  const totalUploaded = existingImages.length + images.filter(img => img.url).length
+  const uploadedCount = images.filter(img => img.url).length
 
   return (
     <div className="min-h-screen bg-white pb-8">
@@ -602,22 +546,9 @@ export function ListProperty() {
             <ArrowLeft size={18} className="text-gray-700" />
           </button>
           <div>
-            <h1 className="text-base font-bold text-gray-900 leading-tight">
-              {isEditMode ? 'Edit Property' : 'List Property'}
-            </h1>
-            <p className="text-[10px] text-gray-500 font-medium">
-              {isEditMode ? 'Update your listing details' : 'Add a new property listing'}
-            </p>
+            <h1 className="text-base font-bold text-gray-900 leading-tight">List Property</h1>
+            <p className="text-[10px] text-gray-500 font-medium">Add a new property listing</p>
           </div>
-          {isEditMode && (
-            <span className={`ml-auto text-[10px] font-medium px-2.5 py-1 rounded-full ${
-              propertyStatus === 'published' 
-                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' 
-                : 'bg-yellow-100 text-yellow-700 border border-yellow-200'
-            }`}>
-              {propertyStatus === 'published' ? 'Published' : 'Draft'}
-            </span>
-          )}
         </div>
       </div>
 
@@ -646,7 +577,7 @@ export function ListProperty() {
           </div>
         )}
 
-        <form className="space-y-5">
+        <form onSubmit={handleSubmit((data) => onSubmit(data, 'published'))} className="space-y-5">
           {/* Title */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">
@@ -900,51 +831,97 @@ export function ListProperty() {
           {/* Image Upload */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-2">
-              Images ({existingImages.length + images.length} / {MAX_FILES}) 
-              <span className="text-red-500">*</span>
+              Images ({images.length} / {MAX_FILES}) <span className="text-red-500">*</span>
               <span className="text-xs font-normal text-gray-400 ml-1">
                 (Minimum {MIN_FILES} images required for publishing)
               </span>
             </label>
             
-            {/* Existing Images */}
-            {existingImages.length > 0 && (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-3">
-                {existingImages.map((url, index) => (
-                  <div key={`existing-${index}`} className="relative group">
-                    <div className="aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
-                      <img
-                        src={url}
-                        alt={`Image ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeExistingImage(index)}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg hover:bg-red-600 transition"
-                    >
-                      <X size={14} />
-                    </button>
+            <div
+              className={`border-2 border-dashed rounded-xl p-6 text-center transition ${
+                isDragging 
+                  ? 'border-purple-600 bg-[#F7F4FF]' 
+                  : images.length >= MAX_FILES 
+                    ? 'border-gray-300 opacity-50' 
+                    : 'border-gray-200 hover:border-purple-600'
+              }`}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+            >
+              <input
+                type="file"
+                accept={ALLOWED_MIME_TYPES.join(',')}
+                multiple
+                onChange={handleImageUpload}
+                className="hidden"
+                id="image-upload"
+                disabled={images.length >= MAX_FILES || uploadingImages}
+              />
+              <label
+                htmlFor="image-upload"
+                className={`cursor-pointer flex flex-col items-center gap-2 ${
+                  images.length >= MAX_FILES || uploadingImages ? 'cursor-not-allowed' : ''
+                }`}
+              >
+                <Upload size={28} className={`${isDragging ? 'text-purple-600' : 'text-gray-400'}`} />
+                <p className="text-sm text-gray-500">
+                  {images.length >= MAX_FILES 
+                    ? `Maximum ${MAX_FILES} images uploaded`
+                    : uploadingImages
+                      ? 'Uploading images...'
+                      : isDragging
+                        ? 'Drop images here...'
+                        : 'Tap to upload or drag & drop'
+                  }
+                </p>
+                <p className="text-xs text-gray-400">
+                  {MAX_FILES} images max • 5MB each • JPEG, PNG, WebP, GIF, SVG, HEIC
+                </p>
+                {images.length < MAX_FILES && !uploadingImages && (
+                  <p className="text-xs text-purple-600">
+                    {MAX_FILES - images.length} more image{MAX_FILES - images.length > 1 ? 's' : ''} allowed
+                  </p>
+                )}
+                {uploadingImages && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <Loader2 size={16} className="text-purple-600 animate-spin" />
+                    <span className="text-xs text-purple-600">Uploading...</span>
                   </div>
-                ))}
+                )}
+              </label>
+            </div>
+
+            {/* Image count indicator */}
+            {images.length > 0 && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className={`text-xs font-medium ${uploadedCount >= MIN_FILES ? 'text-emerald-600' : 'text-gray-500'}`}>
+                  {uploadedCount} / {MIN_FILES} minimum uploaded
+                </span>
+                {uploadedCount >= MIN_FILES && (
+                  <span className="text-emerald-500 text-xs">✓</span>
+                )}
               </div>
             )}
 
-            {/* New Images */}
             {images.length > 0 && (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-3">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mt-3">
                 {images.map((image, index) => (
-                  <div key={`new-${index}`} className="relative group">
+                  <div key={index} className="relative group">
                     <div className="aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
                       <img
                         src={image.preview || image.url}
-                        alt={`Preview ${index + 1}`}
+                        alt={`Image ${index + 1}`}
                         className="w-full h-full object-cover"
                       />
                       {image.uploading && (
                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
                           <Loader2 size={24} className="text-white animate-spin" />
+                        </div>
+                      )}
+                      {!image.uploading && image.url && (
+                        <div className="absolute top-2 right-2 bg-emerald-500 text-white rounded-full p-0.5">
+                          <CheckCircle size={12} />
                         </div>
                       )}
                     </div>
@@ -962,76 +939,8 @@ export function ListProperty() {
                 ))}
               </div>
             )}
-            
-            <div
-              className={`border-2 border-dashed rounded-xl p-6 text-center transition ${
-                isDragging 
-                  ? 'border-purple-600 bg-[#F7F4FF]' 
-                  : existingImages.length + images.length >= MAX_FILES 
-                    ? 'border-gray-300 opacity-50' 
-                    : 'border-gray-200 hover:border-purple-600'
-              }`}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-            >
-              <input
-                type="file"
-                accept={ALLOWED_MIME_TYPES.join(',')}
-                multiple
-                onChange={handleImageUpload}
-                className="hidden"
-                id="image-upload"
-                disabled={existingImages.length + images.length >= MAX_FILES || uploadingImages}
-              />
-              <label
-                htmlFor="image-upload"
-                className={`cursor-pointer flex flex-col items-center gap-2 ${
-                  existingImages.length + images.length >= MAX_FILES || uploadingImages ? 'cursor-not-allowed' : ''
-                }`}
-              >
-                <Upload size={28} className={`${isDragging ? 'text-purple-600' : 'text-gray-400'}`} />
-                <p className="text-sm text-gray-500">
-                  {existingImages.length + images.length >= MAX_FILES 
-                    ? `Maximum ${MAX_FILES} images uploaded`
-                    : uploadingImages
-                      ? 'Uploading images...'
-                      : isDragging
-                        ? 'Drop images here...'
-                        : 'Tap to upload or drag & drop'
-                  }
-                </p>
-                <p className="text-xs text-gray-400">
-                  {MAX_FILES} images max • 5MB each • JPEG, PNG, WebP, GIF, SVG, HEIC
-                </p>
-                {existingImages.length + images.length < MAX_FILES && !uploadingImages && (
-                  <p className="text-xs text-purple-600">
-                    {MAX_FILES - existingImages.length - images.length} more image{MAX_FILES - existingImages.length - images.length > 1 ? 's' : ''} allowed
-                  </p>
-                )}
-                {uploadingImages && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <Loader2 size={16} className="text-purple-600 animate-spin" />
-                    <span className="text-xs text-purple-600">Uploading...</span>
-                  </div>
-                )}
-              </label>
-            </div>
-
-            {/* Image count indicator */}
-            {totalUploaded > 0 && (
-              <div className="mt-2 flex items-center gap-2">
-                <span className={`text-xs font-medium ${totalUploaded >= MIN_FILES ? 'text-emerald-600' : 'text-gray-500'}`}>
-                  {totalUploaded} / {MIN_FILES} minimum uploaded
-                </span>
-                {totalUploaded >= MIN_FILES && (
-                  <span className="text-emerald-500 text-xs">✓</span>
-                )}
-              </div>
-            )}
           </div>
 
-          {/* Action Buttons */}
           <div className="flex gap-3">
             <button
               type="button"
@@ -1046,12 +955,11 @@ export function ListProperty() {
               `}
             >
               <Save size={16} />
-              {isEditMode ? 'Update Draft' : 'Save Draft'}
+              Save Draft
             </button>
             
             <button
-              type="button"
-              onClick={handleSubmit((data) => onSubmit(data, 'published'))}
+              type="submit"
               disabled={submitting || uploadingImages || images.some(img => img.uploading)}
               className={`
                 flex-[2] py-3 rounded-xl font-semibold text-sm text-white transition flex items-center justify-center gap-2
@@ -1062,15 +970,17 @@ export function ListProperty() {
               `}
             >
               {submitting ? (
-                <>
+                <span className="flex items-center justify-center gap-2">
                   <Loader2 size={18} className="animate-spin" />
-                  {isEditMode ? 'Updating...' : 'Publishing...'}
-                </>
+                  Publishing...
+                </span>
+              ) : uploadingImages || images.some(img => img.uploading) ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 size={18} className="animate-spin" />
+                  Uploading images...
+                </span>
               ) : (
-                <>
-                  <CheckCircle size={16} />
-                  {isEditMode ? 'Update & Publish' : 'Publish'}
-                </>
+                'Publish'
               )}
             </button>
           </div>

@@ -3,19 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { 
   ArrowLeft, Edit2, Briefcase, Eye, Heart, Mail, 
   Phone, MapPin, Check, ChevronRight, Rocket, 
-  LogOut, List, MessageCircle, Pencil
+  Home, LogOut, X, Save, List, MessageCircle,
+  Pencil
 } from 'lucide-react'
 import { supabase } from '../../services/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { EditProfileModal } from './EditProfileModal'
 
-// 🔵 DEBUG: Log when this file loads
-console.log('🔵 Profile.jsx file has been loaded!')
-
 export function Profile() {
-  // 🔵 DEBUG: Log when component renders
-  console.log('🔵 Profile component is rendering!')
-  
   const navigate = useNavigate()
   const { user, profile, loading, signOut } = useAuth()
   const [showEditModal, setShowEditModal] = useState(false)
@@ -31,12 +26,6 @@ export function Profile() {
     savedItems: 0
   })
   const [statsLoading, setStatsLoading] = useState(true)
-
-  // 🔵 DEBUG: Log when user or profile changes
-  useEffect(() => {
-    console.log('🔵 Profile useEffect - user:', user?.id)
-    console.log('🔵 Profile useEffect - profile:', profile)
-  }, [user, profile])
 
   useEffect(() => {
     if (profile) {
@@ -95,11 +84,20 @@ export function Profile() {
       const totalViews = listings?.reduce((sum, p) => sum + (p.views || 0), 0) || 0
       const totalInquiries = listings?.reduce((sum, p) => sum + (p.inquiries || 0), 0) || 0
 
+      const { count: savedCount, error: savedError } = await supabase
+        .from('saved_properties')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+
+      if (savedError) {
+        console.error('Error loading saved count:', savedError)
+      }
+
       setStats({
         totalListings,
         totalViews,
         totalInquiries,
-        savedItems: 0
+        savedItems: savedCount || 0
       })
     } catch (err) {
       console.error('Error loading stats:', err)
@@ -126,6 +124,8 @@ export function Profile() {
       setFormData(data)
       await loadStats()
       setShowEditModal(false)
+      // Refresh the page to update the auth context
+      window.location.reload()
     } catch (err) {
       console.error('Error updating profile:', err)
       throw err
@@ -137,30 +137,24 @@ export function Profile() {
     navigate('/')
   }
 
-  // 🔵 DEBUG: Log before rendering
-  console.log('🔵 Profile about to render, showEditModal:', showEditModal)
-
   if (loading || statsLoading) {
-    console.log('🔵 Profile showing loading state')
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#6C4DFF] border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-xs text-gray-500 mt-2">Loading your profile...</p>
+          <div className="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
         </div>
       </div>
     )
   }
 
   if (!user) {
-    console.log('🔵 Profile - no user, redirecting')
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
           <p className="text-gray-500 mb-4">Please sign in to view your profile</p>
           <button 
             onClick={() => navigate('/')}
-            className="px-6 py-2 bg-[#6C4DFF] text-white rounded-xl font-medium hover:bg-[#5A3EF5] transition"
+            className="px-6 py-2 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 transition"
           >
             Go Home
           </button>
@@ -169,48 +163,27 @@ export function Profile() {
     )
   }
 
-  console.log('🔵 Profile - rendering main content with Edit button')
-
   return (
     <>
       <div className="min-h-screen bg-white pb-24 font-sans overflow-x-hidden">
         
         {/* Profile Header */}
-        <div className="sticky top-0 z-50 bg-white border-b border-gray-200">
-          <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate(-1)}
-                className="p-2 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl transition-colors shadow-sm"
-              >
-                <ArrowLeft size={18} className="text-gray-700" />
-              </button>
-              <div>
-                <h1 className="text-base font-bold text-gray-900 leading-tight">Profile</h1>
-                <p className="text-[10px] text-gray-500 font-medium">Manage your account</p>
-              </div>
-            </div>
-            
-            {/* EDIT BUTTON */}
+        <div className="sticky top-0 z-40 bg-white border-b border-gray-200">
+          <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
             <button
-              onClick={() => {
-                console.log('🔵 Edit button clicked!')
-                setShowEditModal(true)
-              }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#6C4DFF] hover:bg-[#5A3EF5] text-white text-xs font-semibold transition shadow-sm"
+              onClick={() => navigate('/')}
+              className="p-2 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl transition-colors shadow-sm flex-shrink-0"
             >
-              <Pencil size={15} />
-              Edit
+              <ArrowLeft size={18} className="text-gray-700" />
             </button>
+            <div>
+              <h1 className="text-base font-bold text-gray-900 leading-tight">Profile</h1>
+              <p className="text-[10px] text-gray-500 font-medium">Manage your account and listings</p>
+            </div>
           </div>
         </div>
 
         <div className="max-w-2xl mx-auto px-4 space-y-4 mt-4">
-          
-          {/* DEBUG: Visible indicator that this is the Profile component */}
-          <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-2 rounded-lg text-xs">
-            🔍 Profile component is rendering (debug mode)
-          </div>
           
           {/* Main User Card */}
           <div className="bg-white rounded-[20px] border border-gray-200 shadow-sm overflow-hidden relative">
@@ -218,11 +191,17 @@ export function Profile() {
             
             <div className="p-4 relative z-10">
               {/* Avatar & Info */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 mb-4">
                 <div className="relative flex-shrink-0">
-                  <div className="w-14 h-14 rounded-full bg-[#6C4DFF] text-white flex items-center justify-center text-xl font-bold shadow-sm border border-[#6C4DFF]/20">
+                  <div className="w-14 h-14 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xl font-bold shadow-sm border border-emerald-600/20">
                     {formData.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
                   </div>
+                  <button
+                    onClick={() => setShowEditModal(true)}
+                    className="absolute -bottom-1 -right-1 p-1.5 bg-white border border-gray-300 rounded-full text-gray-500 hover:text-purple-600 shadow-sm transition-colors"
+                  >
+                    <Edit2 size={12} />
+                  </button>
                 </div>
                 <div className="flex-1 text-left">
                   <h2 className="text-base font-bold text-gray-900 leading-tight">
@@ -232,58 +211,47 @@ export function Profile() {
                 </div>
               </div>
 
-              {/* LARGE EDIT PROFILE BUTTON */}
-              <button
-                onClick={() => {
-                  console.log('🔵 Large Edit Profile button clicked!')
-                  setShowEditModal(true)
-                }}
-                className="mt-4 w-full bg-[#6C4DFF] hover:bg-[#5A3EF5] text-white rounded-xl py-3 text-sm font-semibold transition shadow-sm"
-              >
-                Edit Profile
-              </button>
-
               {/* Stats Row */}
-              <div className="grid grid-cols-3 gap-2 mt-4">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => navigate('/my-listings')}
-                  className="bg-gray-50/80 border border-gray-200 rounded-2xl p-3 flex items-center gap-3 hover:border-purple-300 hover:bg-purple-50/50 transition-all group text-left"
+                  className="bg-gray-50/80 border border-gray-200 rounded-2xl p-2.5 flex items-center gap-2 hover:border-purple-300 hover:bg-purple-50/50 transition-all group"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-purple-100/60 flex items-center justify-center flex-shrink-0 group-hover:bg-purple-200/60 transition">
-                    <Briefcase size={18} className="text-purple-600" />
+                  <div className="w-8 h-8 rounded-xl bg-purple-100/60 flex items-center justify-center flex-shrink-0 group-hover:bg-purple-200/60 transition">
+                    <Briefcase size={15} className="text-purple-600" />
                   </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-lg font-bold text-gray-900 leading-none">{stats.totalListings}</span>
-                    <span className="text-[10px] text-gray-500 leading-tight mt-1">Listings</span>
-                    <span className="text-[10px] text-purple-600 font-medium leading-tight mt-0.5">View All →</span>
+                  <div className="flex flex-col text-left">
+                    <span className="text-sm font-bold text-gray-900 leading-none mb-0.5">{stats.totalListings}</span>
+                    <span className="text-[9px] text-gray-500 leading-tight">Listings</span>
+                    <span className="text-[9px] text-purple-600 font-medium leading-tight">Active</span>
                   </div>
                 </button>
 
                 <button
                   onClick={() => navigate('/my-listings')}
-                  className="bg-gray-50/80 border border-gray-200 rounded-2xl p-3 flex items-center gap-3 hover:border-purple-300 hover:bg-purple-50/50 transition-all group text-left"
+                  className="bg-gray-50/80 border border-gray-200 rounded-2xl p-2.5 flex items-center gap-2 hover:border-purple-300 hover:bg-purple-50/50 transition-all group"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-100 transition">
-                    <Eye size={18} className="text-blue-500" />
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-100 transition">
+                    <Eye size={15} className="text-blue-500" />
                   </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-lg font-bold text-gray-900 leading-none">{stats.totalViews}</span>
-                    <span className="text-[10px] text-gray-500 leading-tight mt-1">Total Views</span>
-                    <span className="text-[10px] text-blue-500 font-medium leading-tight mt-0.5">All time</span>
+                  <div className="flex flex-col text-left">
+                    <span className="text-sm font-bold text-gray-900 leading-none mb-0.5">{stats.totalViews}</span>
+                    <span className="text-[9px] text-gray-500 leading-tight">Total Views</span>
+                    <span className="text-[9px] text-blue-500 font-medium leading-tight">All time</span>
                   </div>
                 </button>
 
                 <button
-                  onClick={() => navigate('/my-listings')}
-                  className="bg-gray-50/80 border border-gray-200 rounded-2xl p-3 flex items-center gap-3 hover:border-purple-300 hover:bg-purple-50/50 transition-all group text-left"
+                  onClick={() => navigate('/saved')}
+                  className="bg-gray-50/80 border border-gray-200 rounded-2xl p-2.5 flex items-center gap-2 hover:border-purple-300 hover:bg-purple-50/50 transition-all group"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-100 transition">
-                    <MessageCircle size={18} className="text-emerald-500" />
+                  <div className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 group-hover:bg-red-100 transition">
+                    <Heart size={15} className="text-red-500" />
                   </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-lg font-bold text-gray-900 leading-none">{stats.totalInquiries}</span>
-                    <span className="text-[10px] text-gray-500 leading-tight mt-1">Inquiries</span>
-                    <span className="text-[10px] text-emerald-500 font-medium leading-tight mt-0.5">All time</span>
+                  <div className="flex flex-col text-left">
+                    <span className="text-sm font-bold text-gray-900 leading-none mb-0.5">{stats.savedItems}</span>
+                    <span className="text-[9px] text-gray-500 leading-tight">Saved</span>
+                    <span className="text-[9px] text-red-500 font-medium leading-tight">Items</span>
                   </div>
                 </button>
               </div>
@@ -296,10 +264,10 @@ export function Profile() {
               <h3 className="text-xs font-bold text-gray-900">Contact Information</h3>
               <button
                 onClick={() => setShowEditModal(true)}
-                className="text-[10px] text-[#6C4DFF] font-medium hover:text-[#5A3EF5] transition flex items-center gap-1"
+                className="text-xs text-purple-600 font-semibold flex items-center gap-1 hover:text-purple-800"
               >
                 <Edit2 size={12} />
-                Edit All
+                Edit
               </button>
             </div>
             
@@ -329,12 +297,6 @@ export function Profile() {
                     <p className="text-xs text-gray-900 font-medium">{formData.whatsapp_number || 'Not set'}</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowEditModal(true)}
-                  className="text-xs font-semibold text-[#6C4DFF] hover:text-[#5A3EF5] transition"
-                >
-                  Edit
-                </button>
               </div>
 
               <div className="flex items-center justify-between">
@@ -347,12 +309,6 @@ export function Profile() {
                     <p className="text-xs text-gray-900 font-medium">{formData.location || 'Not set'}</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowEditModal(true)}
-                  className="text-xs font-semibold text-[#6C4DFF] hover:text-[#5A3EF5] transition"
-                >
-                  Edit
-                </button>
               </div>
             </div>
           </div>
@@ -361,7 +317,7 @@ export function Profile() {
           {stats.totalListings === 0 && (
             <div className="bg-white rounded-[16px] p-4 border border-gray-200 flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#6C4DFF] text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                <div className="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
                   <Rocket size={16} />
                 </div>
                 <div>
@@ -371,7 +327,7 @@ export function Profile() {
               </div>
               <button
                 onClick={() => navigate('/list-property')}
-                className="flex items-center flex-shrink-0 px-3 py-1.5 bg-[#6C4DFF] text-white rounded-xl text-xs font-bold hover:bg-[#5A3EF5] transition shadow-sm"
+                className="flex items-center flex-shrink-0 px-3 py-1.5 bg-purple-600 text-white rounded-xl text-xs font-bold hover:bg-purple-700 transition shadow-sm"
               >
                 + Add Listing
               </button>

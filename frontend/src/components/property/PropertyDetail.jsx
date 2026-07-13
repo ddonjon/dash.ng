@@ -2,24 +2,89 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { 
   ArrowLeft, MapPin, Bed, X, CheckCircle, MessageCircle, 
-  Phone, Home, Building, Clock, ChevronLeft, ChevronRight
+  Phone, Home, Building, Clock, ChevronLeft, ChevronRight,
+  Bookmark, BookmarkCheck
 } from 'lucide-react'
 import { getPropertyById, getProperties, incrementInquiries } from '../../services/properties'
 import { supabase } from '../../services/supabase'
+import { useAuth } from '../../context/AuthContext'
 
 export function PropertyDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [property, setProperty] = useState(null)
   const [similarProperties, setSimilarProperties] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false)
+  const [isSaved, setIsSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     loadProperty()
-  }, [id])
+    if (user && id) {
+      checkIfSaved()
+    }
+  }, [id, user])
+
+  const checkIfSaved = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('saved_properties')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('property_id', id)
+        .maybeSingle()
+
+      if (error) {
+        console.error('Error checking saved status:', error)
+        return
+      }
+      setIsSaved(!!data)
+    } catch (err) {
+      console.error('Error in checkIfSaved:', err)
+    }
+  }
+
+  const toggleSave = async () => {
+    if (!user) {
+      alert('Please sign in to save listings')
+      return
+    }
+
+    if (saving) return
+
+    setSaving(true)
+    try {
+      if (isSaved) {
+        const { error } = await supabase
+          .from('saved_properties')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('property_id', id)
+
+        if (error) throw error
+        setIsSaved(false)
+      } else {
+        const { error } = await supabase
+          .from('saved_properties')
+          .insert({
+            user_id: user.id,
+            property_id: id
+          })
+
+        if (error) throw error
+        setIsSaved(true)
+      }
+    } catch (err) {
+      console.error('Error toggling save:', err)
+      alert('Failed to save. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const loadProperty = async () => {
     setLoading(true)
@@ -98,11 +163,9 @@ export function PropertyDetail() {
     const priceDisplay = `${formatPrice(property?.price)} ${getPricePeriodLabel(property?.price_period)}`
     const message = `Hello ${property?.users?.name || 'Agent'}, I'm interested in your property: ${property?.title} in ${property?.area} for ${priceDisplay}. Is it still available?`
     
-    // Increment inquiries count
     if (property?.id) {
       try {
         await incrementInquiries(property.id)
-        // Update local property state to reflect the new inquiry count
         setProperty(prev => ({
           ...prev,
           inquiries: (prev?.inquiries || 0) + 1
@@ -141,6 +204,10 @@ export function PropertyDetail() {
     setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length)
   }
 
+  const handleGoBack = () => {
+    navigate(-1)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -160,10 +227,10 @@ export function PropertyDetail() {
           <h3 className="text-lg font-medium text-gray-700">Property not found</h3>
           <p className="text-gray-400 mt-1 text-sm">{error || 'The property you\'re looking for doesn\'t exist.'}</p>
           <button 
-            onClick={() => navigate('/')}
+            onClick={() => navigate(-1)}
             className="mt-4 px-6 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition"
           >
-            Back to listings
+            Go Back
           </button>
         </div>
       </div>
@@ -174,18 +241,35 @@ export function PropertyDetail() {
 
   return (
     <div className="min-h-screen bg-white pb-32">
-      {/* Custom Header with Back Button */}
+      {/* Custom Header with Back Button and Save */}
       <div className="sticky top-0 z-50 bg-white border-b border-gray-100">
-        <div className="px-4 py-3 flex items-center">
+        <div className="px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center">
+            <button
+              onClick={handleGoBack}
+              className="p-2 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl transition-colors shadow-sm"
+            >
+              <ArrowLeft size={18} className="text-gray-700" />
+            </button>
+            <h1 className="text-base font-semibold text-gray-800 truncate ml-3 max-w-[200px] sm:max-w-[400px]">
+              {property.title}
+            </h1>
+          </div>
           <button
-            onClick={() => navigate('/')}
-            className="p-2 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl transition-colors shadow-sm"
+            onClick={toggleSave}
+            disabled={saving}
+            className={`p-2 rounded-xl transition-all duration-200 ${
+              isSaved 
+                ? 'text-gray-600 hover:text-gray-700' 
+                : 'text-gray-400 hover:text-gray-600'
+            } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            <ArrowLeft size={18} className="text-gray-700" />
+            {isSaved ? (
+              <BookmarkCheck size={20} fill="currentColor" />
+            ) : (
+              <Bookmark size={20} />
+            )}
           </button>
-          <h1 className="text-base font-semibold text-gray-800 truncate ml-3">
-            {property.title}
-          </h1>
         </div>
       </div>
 
@@ -203,7 +287,6 @@ export function PropertyDetail() {
           }}
         />
         
-        {/* Navigation Arrows - Only show if multiple images */}
         {images.length > 1 && (
           <>
             <button
@@ -221,12 +304,10 @@ export function PropertyDetail() {
           </>
         )}
         
-        {/* Image counter */}
         <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-medium">
           {currentImageIndex + 1} / {images.length}
         </div>
         
-        {/* Dots indicator */}
         {images.length > 1 && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
             {images.map((_, index) => (
@@ -247,7 +328,6 @@ export function PropertyDetail() {
 
       {/* Content */}
       <div className="px-4 py-5 max-w-3xl mx-auto">
-        {/* Price */}
         <div className="flex items-center justify-between mb-2">
           <div>
             <span className="text-lg font-bold text-purple-600">
@@ -265,12 +345,10 @@ export function PropertyDetail() {
           )}
         </div>
 
-        {/* Title */}
         <h1 className="text-xl font-semibold text-gray-800 mb-4">
           {property.title}
         </h1>
 
-        {/* Quick Info Grid */}
         <div className="grid grid-cols-2 gap-2 mb-5">
           <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
             <p className="text-xs text-gray-400">Location</p>
@@ -302,7 +380,6 @@ export function PropertyDetail() {
           </div>
         </div>
 
-        {/* Description */}
         <div className="mb-5">
           <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Description</h3>
           <p className="text-sm text-gray-600 leading-relaxed">
@@ -310,7 +387,6 @@ export function PropertyDetail() {
           </p>
         </div>
 
-        {/* Features */}
         {property.features?.length > 0 && (
           <div className="mb-5">
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Features & Amenities</h3>
@@ -327,7 +403,6 @@ export function PropertyDetail() {
           </div>
         )}
 
-        {/* Agent Section */}
         <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200 mb-6">
           <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Agent</h3>
           <div className="flex items-center gap-3">
@@ -351,7 +426,6 @@ export function PropertyDetail() {
           </div>
         </div>
 
-        {/* Similar Properties */}
         {similarProperties.length > 0 && (
           <div>
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
@@ -423,7 +497,7 @@ export function PropertyDetail() {
         </div>
       </div>
 
-      {/* Full-Screen Image Viewer with Navigation */}
+      {/* Full-Screen Image Viewer */}
       {isImageViewerOpen && (
         <div 
           className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center"
@@ -447,7 +521,6 @@ export function PropertyDetail() {
               }}
             />
             
-            {/* Navigation arrows in fullscreen */}
             {images.length > 1 && (
               <>
                 <button

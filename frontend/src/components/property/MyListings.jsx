@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { 
   ArrowLeft, Plus, Eye, Edit2, Trash2, XCircle,
@@ -6,7 +6,7 @@ import {
   Clock, LayoutGrid, Search, Filter, SortAsc,
   MessageCircle, TrendingUp, Calendar, MapPin, Bed,
   ChevronDown, ChevronRight, MoreVertical, Pencil,
-  Lock
+  Lock, FileEdit, Image
 } from 'lucide-react'
 import { supabase } from '../../services/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -36,17 +36,6 @@ export function MyListings() {
     views: 0,
     inquiries: 0
   })
-  const menuRef = useRef(null)
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setShowMenuFor(null)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
 
   useEffect(() => {
     loadListings()
@@ -70,9 +59,9 @@ export function MyListings() {
       setListings(data || [])
       
       const total = data?.length || 0
-      const active = data?.filter(p => p.status === 'published').length || 0
-      const drafts = data?.filter(p => p.status === 'draft' || !p.status).length || 0
-      const pending = data?.filter(p => p.status === 'pending').length || 0
+      const active = data?.filter(p => p.status === 'published')?.length || 0
+      const drafts = data?.filter(p => p.status === 'draft' || !p.status)?.length || 0
+      const pending = data?.filter(p => p.status === 'pending')?.length || 0
       const views = data?.reduce((sum, p) => sum + (p.views || 0), 0) || 0
       const inquiries = data?.reduce((sum, p) => sum + (p.inquiries || 0), 0) || 0
       
@@ -217,9 +206,23 @@ export function MyListings() {
   ]
 
   const handleCardClick = (listing) => {
+    if (showMenuFor) {
+      return
+    }
     if (listing.status === 'published') {
       navigate(`/property/${listing.id}`)
     }
+  }
+
+  const handleEditClick = (listingId, e) => {
+    e.stopPropagation()
+    navigate(`/edit-property/${listingId}`)
+    setShowMenuFor(null)
+  }
+
+  const handleMenuToggle = (listingId, e) => {
+    e.stopPropagation()
+    setShowMenuFor(showMenuFor === listingId ? null : listingId)
   }
 
   if (loading) {
@@ -375,63 +378,61 @@ export function MyListings() {
         ) : (
           <div className="space-y-3.5">
             {filteredListings.map((listing) => {
-              const status = listing.status === 'published' ? 'active' : 
-                            listing.status === 'pending' ? 'pending' : 'draft'
-              const isDraft = status === 'draft'
+              const isDraft = listing.status === 'draft' || !listing.status
               
               return (
                 <div
                   key={listing.id}
                   onClick={() => handleCardClick(listing)}
-                  className={`bg-white rounded-xl border shadow-sm transition-all duration-200 overflow-hidden ${
+                  className={`bg-white rounded-xl border shadow-sm transition-all duration-200 ${
                     isDraft 
-                      ? 'border-gray-200 opacity-60 cursor-not-allowed' 
+                      ? 'border-gray-200 cursor-not-allowed' 
                       : 'border-gray-200 hover:shadow-md hover:border-purple-300 cursor-pointer'
                   }`}
                 >
                   <div className="flex items-start p-3.5 gap-4">
-                    {/* Image */}
-                    <div className={`w-24 h-24 md:w-28 md:h-24 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 relative ${
-                      isDraft ? 'grayscale opacity-50' : ''
-                    }`}>
+                    {/* Image - Left side */}
+                    <div className="w-24 h-24 md:w-28 md:h-24 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 relative">
                       {listing.media_urls?.[0] ? (
                         <img
                           src={listing.media_urls[0]}
                           alt={listing.title}
-                          className="w-full h-full object-cover"
+                          className={`w-full h-full object-cover ${isDraft ? 'grayscale opacity-60' : ''}`}
                           onError={(e) => {
                             e.target.src = 'https://placehold.co/200x200/e2e8f0/64748b?text=No+Image'
                           }}
                         />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center">
-                          <span className="text-white text-2xl">🏠</span>
+                        <div className={`w-full h-full flex items-center justify-center ${
+                          isDraft ? 'bg-gray-200' : 'bg-gradient-to-br from-purple-400 to-purple-600'
+                        }`}>
+                          {isDraft ? (
+                            <Image size={24} className="text-gray-400" />
+                          ) : (
+                            <span className="text-white text-2xl">🏠</span>
+                          )}
                         </div>
                       )}
-                      {/* Draft badge on image */}
-                      {isDraft && (
-                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                          <div className="bg-gray-800/90 text-white text-[10px] font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 backdrop-blur-sm">
-                            <Lock size={12} />
-                            Draft
-                          </div>
-                        </div>
-                      )}
+                      {/* Status Badge - Top of image */}
+                      <div className="absolute top-1.5 left-1.5">
+                        <span className={`text-[9px] font-medium px-2 py-0.5 rounded-full border ${getStatusColor(listing.status)}`}>
+                          {getStatusLabel(listing.status)}
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Details */}
-                    <div className={`flex-1 min-w-0 pt-0.5 ${isDraft ? 'opacity-60' : ''}`}>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="text-sm font-semibold text-gray-900 truncate">
-                              {listing.title}
-                            </h3>
-                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${getStatusColor(listing.status)}`}>
-                              {getStatusLabel(listing.status)}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 flex-wrap">
+                    {/* Details - Middle */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className={`text-sm font-semibold truncate ${
+                            isDraft ? 'text-gray-700' : 'text-gray-900'
+                          }`}>
+                            {listing.title}
+                          </h3>
+                          <div className={`flex items-center gap-2 mt-1 text-xs flex-wrap ${
+                            isDraft ? 'text-gray-500' : 'text-gray-500'
+                          }`}>
                             <span className="flex items-center gap-1">
                               <MapPin size={13} />
                               {listing.area}
@@ -444,69 +445,82 @@ export function MyListings() {
                           </div>
                         </div>
                         
-                        {/* 3-dot menu */}
-                        <div className="relative flex-shrink-0 -mt-1" ref={menuRef}>
+                        {/* 3-dot menu - Right side */}
+                        <div className="relative flex-shrink-0">
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setShowMenuFor(showMenuFor === listing.id ? null : listing.id)
-                            }}
-                            className="p-1.5 hover:bg-gray-100 rounded-full transition"
+                            onClick={(e) => handleMenuToggle(listing.id, e)}
+                            className="p-1.5 hover:bg-gray-100 rounded-full transition relative z-10"
                           >
                             <MoreVertical size={18} className="text-gray-500" />
                           </button>
                           
                           {showMenuFor === listing.id && (
-                            <div className="absolute right-0 mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-20 overflow-hidden">
-                              {listing.status === 'published' && (
+                            <>
+                              {/* Invisible full-screen shield */}
+                              <div 
+                                className="fixed inset-0 z-40 cursor-default"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  e.preventDefault()
+                                  setShowMenuFor(null)
+                                }}
+                              />
+                              
+                              {/* The Dropdown Menu - Lower z-index so it doesn't overlap header */}
+                              <div className="absolute right-0 mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden">
+                                {listing.status === 'published' && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      navigate(`/property/${listing.id}`)
+                                      setShowMenuFor(null)
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition flex items-center gap-2"
+                                  >
+                                    <Eye size={14} />
+                                    View
+                                  </button>
+                                )}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    navigate(`/property/${listing.id}`)
-                                    setShowMenuFor(null)
+                                    handleEditClick(listing.id, e)
                                   }}
                                   className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition flex items-center gap-2"
                                 >
-                                  <Eye size={14} />
-                                  View
+                                  <Edit2 size={14} />
+                                  {isDraft ? 'Continue Editing' : 'Edit'}
                                 </button>
-                              )}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  navigate(`/edit-property/${listing.id}`)
-                                  setShowMenuFor(null)
-                                }}
-                                className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition flex items-center gap-2"
-                              >
-                                <Edit2 size={14} />
-                                {isDraft ? 'Continue Editing' : 'Edit'}
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setDeleteModal({
-                                    isOpen: true,
-                                    propertyId: listing.id,
-                                    propertyTitle: listing.title
-                                  })
-                                  setShowMenuFor(null)
-                                }}
-                                className="w-full text-left px-3 py-2 text-xs text-red-700 hover:bg-red-50 transition flex items-center gap-2"
-                              >
-                                <Trash2 size={14} />
-                                Delete
-                              </button>
-                            </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setDeleteModal({
+                                      isOpen: true,
+                                      propertyId: listing.id,
+                                      propertyTitle: listing.title
+                                    })
+                                    setShowMenuFor(null)
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-xs text-red-700 hover:bg-red-50 transition flex items-center gap-2"
+                                >
+                                  <Trash2 size={14} />
+                                  Delete
+                                </button>
+                              </div>
+                            </>
                           )}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
-                        <span className="text-purple-600 font-semibold text-sm">
+                      <div className={`flex items-center gap-3 mt-1.5 text-xs ${
+                        isDraft ? 'text-gray-500' : 'text-gray-500'
+                      }`}>
+                        <span className={`font-semibold text-sm ${
+                          isDraft ? 'text-purple-500' : 'text-purple-600'
+                        }`}>
                           {formatPrice(listing.price)}
                         </span>
-                        <span className="text-gray-400">/ {listing.price_period === 'monthly' ? 'mo' : 'yr'}</span>
+                        <span className="text-gray-400">/ {listing.price_period === 'monthly' ? 'monthly' : 'annum'}</span>
                         <span className="flex items-center gap-1">
                           <Eye size={13} />
                           {listing.views || 0}
@@ -519,6 +533,13 @@ export function MyListings() {
                       <div className="text-xs text-gray-400 mt-1">
                         Listed on {formatDate(listing.created_at)}
                       </div>
+
+                      {isDraft && (
+                        <div className="mt-1.5 text-[10px] text-gray-400 flex items-center gap-1">
+                          <FileEdit size={11} />
+                          <span>Draft - Click the menu to continue editing</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -539,3 +560,5 @@ export function MyListings() {
     </div>
   )
 }
+
+export default MyListings

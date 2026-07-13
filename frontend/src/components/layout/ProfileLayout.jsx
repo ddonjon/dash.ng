@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { 
   ArrowLeft, Edit2, Briefcase, Eye, Heart, Mail, 
   Phone, MapPin, Check, ChevronRight, Rocket, 
-  LogOut, List, MessageCircle
+  LogOut, List, MessageCircle, Pencil
 } from 'lucide-react'
 import { supabase } from '../../services/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -13,7 +13,6 @@ export function ProfileLayout() {
   const navigate = useNavigate()
   const { user, profile, loading, signOut } = useAuth()
   const [showEditModal, setShowEditModal] = useState(false)
-  const [showNameModal, setShowNameModal] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     whatsapp_number: '',
@@ -26,8 +25,6 @@ export function ProfileLayout() {
     savedItems: 0
   })
   const [statsLoading, setStatsLoading] = useState(true)
-  const [nameInput, setNameInput] = useState('')
-  const [savingName, setSavingName] = useState(false)
 
   useEffect(() => {
     if (profile) {
@@ -36,7 +33,6 @@ export function ProfileLayout() {
         whatsapp_number: profile.whatsapp_number || '',
         location: profile.location || ''
       })
-      setNameInput(profile.name || '')
       loadStats()
     }
   }, [profile, user])
@@ -87,11 +83,20 @@ export function ProfileLayout() {
       const totalViews = listings?.reduce((sum, p) => sum + (p.views || 0), 0) || 0
       const totalInquiries = listings?.reduce((sum, p) => sum + (p.inquiries || 0), 0) || 0
 
+      const { count: savedCount, error: savedError } = await supabase
+        .from('saved_properties')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+
+      if (savedError) {
+        console.error('Error loading saved count:', savedError)
+      }
+
       setStats({
         totalListings,
         totalViews,
         totalInquiries,
-        savedItems: 0
+        savedItems: savedCount || 0
       })
     } catch (err) {
       console.error('Error loading stats:', err)
@@ -116,35 +121,11 @@ export function ProfileLayout() {
       if (error) throw error
 
       setFormData(data)
-      setNameInput(data.name)
       await loadStats()
       setShowEditModal(false)
     } catch (err) {
       console.error('Error updating profile:', err)
       throw err
-    }
-  }
-
-  const handleSaveName = async () => {
-    if (!user || !nameInput.trim()) return
-    
-    setSavingName(true)
-    try {
-      const { error } = await supabase
-        .from('users')
-        .update({ name: nameInput.trim() })
-        .eq('id', user.id)
-
-      if (error) throw error
-
-      setFormData(prev => ({ ...prev, name: nameInput.trim() }))
-      await loadStats()
-      setShowNameModal(false)
-    } catch (err) {
-      console.error('Error updating name:', err)
-      alert('Failed to update name')
-    } finally {
-      setSavingName(false)
     }
   }
 
@@ -181,10 +162,10 @@ export function ProfileLayout() {
 
   return (
     <>
-      <div className="min-h-screen bg-white pb-24 font-sans overflow-x-hidden">
+      <div className="min-h-screen bg-white pb-24 font-sans">
         
-        {/* Profile Header */}
-        <div className="sticky top-0 z-40 bg-white border-b border-gray-200">
+        {/* Profile Header - Sticky with higher z-index */}
+        <div className="sticky top-0 z-[60] bg-white border-b border-gray-200">
           <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
             <button
               onClick={() => navigate('/')}
@@ -213,7 +194,7 @@ export function ProfileLayout() {
                     {formData.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
                   </div>
                   <button
-                    onClick={() => setShowNameModal(true)}
+                    onClick={() => setShowEditModal(true)}
                     className="absolute -bottom-1 -right-1 p-1.5 bg-white border border-gray-300 rounded-full text-gray-500 hover:text-purple-600 shadow-sm transition-colors"
                   >
                     <Edit2 size={12} />
@@ -258,16 +239,16 @@ export function ProfileLayout() {
                 </button>
 
                 <button
-                  onClick={() => navigate('/my-listings')}
+                  onClick={() => navigate('/saved')}
                   className="bg-gray-50/80 border border-gray-200 rounded-2xl p-2.5 flex items-center gap-2 hover:border-purple-300 hover:bg-purple-50/50 transition-all group"
                 >
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-100 transition">
-                    <MessageCircle size={15} className="text-emerald-500" />
+                  <div className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 group-hover:bg-red-100 transition">
+                    <Heart size={15} className="text-red-500" />
                   </div>
                   <div className="flex flex-col text-left">
-                    <span className="text-sm font-bold text-gray-900 leading-none mb-0.5">{stats.totalInquiries}</span>
-                    <span className="text-[9px] text-gray-500 leading-tight">Inquiries</span>
-                    <span className="text-[9px] text-emerald-500 font-medium leading-tight">All time</span>
+                    <span className="text-sm font-bold text-gray-900 leading-none mb-0.5">{stats.savedItems}</span>
+                    <span className="text-[9px] text-gray-500 leading-tight">Saved</span>
+                    <span className="text-[9px] text-red-500 font-medium leading-tight">Items</span>
                   </div>
                 </button>
               </div>
@@ -411,7 +392,7 @@ export function ProfileLayout() {
         </div>
       </div>
 
-      {/* Edit Profile Modal - Full profile edit */}
+      {/* Edit Profile Modal */}
       <EditProfileModal
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
@@ -419,74 +400,6 @@ export function ProfileLayout() {
         user={user}
         onSave={handleSave}
       />
-
-      {/* Name Edit Modal - Only for changing name */}
-      {showNameModal && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-          <div 
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setShowNameModal(false)}
-          />
-          
-          <div className="relative bg-white rounded-2xl max-w-sm w-full shadow-2xl">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-              <h2 className="text-base font-bold text-gray-900">Change Name</h2>
-              <button onClick={() => setShowNameModal(false)} className="p-1.5 hover:bg-gray-100 rounded-lg transition">
-                <X size={18} className="text-gray-500" />
-              </button>
-            </div>
-
-            <div className="p-4">
-              <div className="flex flex-col items-center mb-4">
-                <div className="w-16 h-16 rounded-full bg-emerald-500 text-white flex items-center justify-center text-2xl font-bold shadow-lg">
-                  {formData.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
-                </div>
-                <p className="text-xs text-gray-500 mt-2">Update your display name</p>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-700 mb-1">
-                  Full Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  placeholder="Enter your full name"
-                  style={{ fontSize: '16px' }}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20 bg-white transition-all"
-                  autoFocus
-                />
-              </div>
-
-              <div className="flex gap-2 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowNameModal(false)}
-                  className="flex-1 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveName}
-                  disabled={savingName || !nameInput.trim()}
-                  className="flex-1 px-3 py-2 text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition shadow-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-                >
-                  {savingName ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    'Save Name'
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   )
 }

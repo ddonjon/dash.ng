@@ -20,6 +20,7 @@ export function EditProfileModal({ isOpen, onClose, profile, user, onSave }) {
         email: user?.email || ''
       })
       setError(null)
+      setSaving(false)
     }
   }, [profile, user, isOpen])
 
@@ -50,21 +51,26 @@ export function EditProfileModal({ isOpen, onClose, profile, user, onSave }) {
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+      {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
       
+      {/* Modal */}
       <div className="relative bg-white rounded-2xl max-w-sm w-full max-h-[85vh] overflow-hidden shadow-2xl">
-        {/* Header - Smaller */}
+        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
           <h2 className="text-base font-bold text-gray-900">Edit Profile</h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition">
+          <button 
+            onClick={onClose} 
+            className="p-1.5 hover:bg-gray-100 rounded-lg transition"
+          >
             <X size={18} className="text-gray-500" />
           </button>
         </div>
 
-        {/* Form - Tighter spacing */}
+        {/* Form */}
         <form onSubmit={handleSubmit} className="p-4 space-y-3 overflow-y-auto max-h-[calc(85vh-60px)]">
           {error && (
             <div className="bg-red-50 text-red-700 p-2.5 rounded-lg text-xs border border-red-200">
@@ -72,7 +78,7 @@ export function EditProfileModal({ isOpen, onClose, profile, user, onSave }) {
             </div>
           )}
 
-          {/* Avatar - Smaller */}
+          {/* Avatar */}
           <div className="flex flex-col items-center mb-2">
             <div className="w-16 h-16 rounded-full bg-purple-600 text-white flex items-center justify-center text-2xl font-bold shadow-lg">
               {getInitials()}
@@ -153,7 +159,7 @@ export function EditProfileModal({ isOpen, onClose, profile, user, onSave }) {
             </div>
           </div>
 
-          {/* Action Buttons - Smaller */}
+          {/* Action Buttons */}
           <div className="flex gap-2 pt-2">
             <button
               type="button"

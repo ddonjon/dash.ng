@@ -40,7 +40,7 @@ export function DrawerMenu({ isOpen, onClose, onSignIn, onSignUp }) {
   const accountItems = [
     { icon: User, label: 'Profile', path: '/profile' },
     { icon: FileText, label: 'My Listings', path: '/my-listings' },
-    { icon: Heart, label: 'Saved Properties', path: '/saved' },
+    { icon: Heart, label: 'Saved', path: '/saved' },
     { icon: Bell, label: 'Notifications', path: '/notifications' },
   ]
 
@@ -51,19 +51,26 @@ export function DrawerMenu({ isOpen, onClose, onSignIn, onSignUp }) {
 
   return (
     <>
+      {/* Backdrop with fade-in */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/40 z-[200]"
+          className="fixed inset-0 bg-black/40 z-[200] transition-opacity duration-300"
+          style={{ animation: 'fadeIn 0.3s ease-out' }}
           onClick={onClose}
         />
       )}
 
+      {/* Drawer with improved slide animation */}
       <div 
         className={`
           fixed top-0 right-0 h-full w-[320px] max-w-[85vw] bg-white shadow-2xl z-[201]
-          transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]
+          transition-all duration-400 ease-[cubic-bezier(0.22,1,0.36,1)]
           ${isOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}
         `}
+        style={{
+          transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
+          transition: 'transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease'
+        }}
       >
         {/* Header with User Info and Close Button */}
         <div className="p-4 border-b border-gray-100 bg-gray-50/30">
@@ -223,6 +230,14 @@ export function DrawerMenu({ isOpen, onClose, onSignIn, onSignUp }) {
           )}
         </div>
       </div>
+
+      {/* CSS animation for fade-in */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}</style>
     </>
   )
 }

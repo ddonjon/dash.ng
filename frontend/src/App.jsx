@@ -14,6 +14,9 @@ import { PropertyDetail } from './components/property/PropertyDetail'
 import { ListProperty } from './components/property/ListProperty'
 import { MyListings } from './components/property/MyListings'
 import { EditProperty } from './components/property/EditProperty'
+import { Saved } from './components/property/Saved'
+import { Notifications } from './components/notifications/Notifications'
+import { Settings } from './components/settings/Settings'
 import { SignIn } from './components/auth/SignIn'
 import { SignUp } from './components/auth/SignUp'
 import './App.css'
@@ -63,7 +66,7 @@ function AppContent() {
   useEffect(() => {
     if (!loading) {
       const path = window.location.pathname
-      if ((path === '/list-property' || path === '/my-listings' || path === '/edit-property') && !user) {
+      if ((path === '/list-property' || path === '/my-listings' || path === '/edit-property' || path === '/saved' || path === '/notifications' || path === '/settings') && !user) {
         setShowSignIn(true)
         navigate('/')
       }
@@ -91,12 +94,14 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Everything inside this div gets blurred - Header AND Content */}
       <div className={`transition-all duration-300 ${isDrawerOpen ? 'blur-sm' : ''}`}>
         <HeaderUI 
           onSignIn={openSignIn}
           onSignUp={openSignUp}
           onDrawerToggle={handleDrawerToggle}
         />
+        
         <div className="bg-white">
           <Routes>
             <Route path="/" element={<HomePage isDrawerOpen={isDrawerOpen} />} />
@@ -126,12 +131,28 @@ function AppContent() {
                 <EditProperty />
               </ProtectedRoute>
             } />
+            <Route path="/saved" element={
+              <ProtectedRoute>
+                <Saved />
+              </ProtectedRoute>
+            } />
+            <Route path="/notifications" element={
+              <ProtectedRoute>
+                <Notifications />
+              </ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            } />
             <Route path="/sign-in" element={<Navigate to="/" replace />} />
             <Route path="/sign-up" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </div>
       
+      {/* DRAWER MENU - Rendered OUTSIDE the blur, on top, stays clear */}
       <DrawerMenu 
         isOpen={isDrawerOpen} 
         onClose={() => handleDrawerToggle(false)}
