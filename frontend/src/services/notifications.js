@@ -38,8 +38,11 @@ export async function getNotifications(userId) {
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
 
-    if (error) throw error
-    return data
+    if (error) {
+      console.error('Supabase error:', error)
+      throw error
+    }
+    return data || []
   } catch (err) {
     console.error('Error fetching notifications:', err)
     return []
@@ -57,7 +60,10 @@ export async function getUnreadCount(userId) {
       .eq('user_id', userId)
       .eq('read', false)
 
-    if (error) throw error
+    if (error) {
+      console.error('Supabase error:', error)
+      return 0
+    }
     return count || 0
   } catch (err) {
     console.error('Error getting unread count:', err)
@@ -124,8 +130,12 @@ export async function clearAllNotifications(userId) {
  * Subscribe to real-time notifications
  */
 export function subscribeToNotifications(userId, callback) {
+  // Create a unique channel name
+  const channelName = `notifications_${userId}_${Date.now()}`
+  
+  // Create the channel and set up the listener before subscribing
   const channel = supabase
-    .channel('notifications_channel')
+    .channel(channelName)
     .on(
       'postgres_changes',
       {
@@ -138,7 +148,9 @@ export function subscribeToNotifications(userId, callback) {
         callback(payload.new)
       }
     )
-    .subscribe()
+    .subscribe((status) => {
+      console.log(`🔔 Notification subscription status: ${status}`)
+    })
 
   return channel
 }

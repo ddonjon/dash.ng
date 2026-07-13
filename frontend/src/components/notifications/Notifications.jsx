@@ -7,105 +7,101 @@ import {
   Bell, Clock
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { getNotifications, markAsRead, markAllAsRead, clearAllNotifications, subscribeToNotifications } from '../../services/notifications'
 
 // Map notification types to icons
 const iconMap = {
   inquiry: { icon: MessageCircle, color: 'text-blue-500', bg: 'bg-blue-50' },
   save: { icon: Heart, color: 'text-red-500', bg: 'bg-red-50' },
   view: { icon: Eye, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-  system: { icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-  follow: { icon: UserPlus, color: 'text-purple-500', bg: 'bg-purple-50' }
+  system: { icon: CheckCircle, color: 'text-purple-500', bg: 'bg-purple-50' }
 }
-
-// Dummy notifications for testing
-const dummyNotifications = [
-  {
-    id: 'd1',
-    type: 'inquiry',
-    title: 'New inquiry on your property',
-    message: 'Jonathan Mahalz inquired about "Luxury 3-Bedroom in Wuse II"',
-    created_at: new Date(Date.now() - 2 * 60000).toISOString(),
-    read: false,
-    link: '/property/123'
-  },
-  {
-    id: 'd2',
-    type: 'save',
-    title: 'Someone saved your listing',
-    message: 'A user saved "Modern 4-Bedroom Duplex in Maitama" to their favorites',
-    created_at: new Date(Date.now() - 15 * 60000).toISOString(),
-    read: false,
-    link: '/property/456'
-  },
-  {
-    id: 'd3',
-    type: 'view',
-    title: 'Your listing is getting views',
-    message: '"Executive 3-Bedroom in Jabi" received 12 new views today',
-    created_at: new Date(Date.now() - 1 * 3600000).toISOString(),
-    read: false,
-    link: '/property/789'
-  },
-  {
-    id: 'd4',
-    type: 'system',
-    title: 'Listing approved',
-    message: 'Your property "Cozy 2-Bedroom in Gwarinpa" has been approved and is now live',
-    created_at: new Date(Date.now() - 3 * 3600000).toISOString(),
-    read: true,
-    link: '/property/101'
-  },
-  {
-    id: 'd5',
-    type: 'inquiry',
-    title: 'New WhatsApp message',
-    message: 'Someone sent a message about "5-Bedroom Mansion in Asokoro"',
-    created_at: new Date(Date.now() - 5 * 3600000).toISOString(),
-    read: true,
-    link: '/property/112'
-  },
-  {
-    id: 'd6',
-    type: 'system',
-    title: 'Property expired',
-    message: 'Your listing "1-Bedroom Studio in Wuse I" has expired. Renew to keep it active.',
-    created_at: new Date(Date.now() - 24 * 3600000).toISOString(),
-    read: true,
-    link: '/my-listings'
-  },
-  {
-    id: 'd7',
-    type: 'save',
-    title: 'New follower',
-    message: 'A user started following your listings',
-    created_at: new Date(Date.now() - 48 * 3600000).toISOString(),
-    read: true,
-    link: '/profile'
-  },
-  {
-    id: 'd8',
-    type: 'view',
-    title: 'Popular listing alert',
-    message: '"3-Bedroom Apartment in Gwarinpa" is trending with 45 views this week',
-    created_at: new Date(Date.now() - 72 * 3600000).toISOString(),
-    read: true,
-    link: '/property/131'
-  }
-]
 
 export function Notifications() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const [loading, setLoading] = useState(false)
-  const [notifications, setNotifications] = useState(dummyNotifications)
+  const [loading, setLoading] = useState(true)
+  const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [activeFilter, setActiveFilter] = useState('all')
+  const [error, setError] = useState(null)
 
+  // Load notifications
+  const loadNotifications = async () => {
+    if (!user) {
+      setLoading(false)
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    
+    try {
+      const data = await getNotifications(user.id)
+      setNotifications(data || [])
+      
+      // Count unread
+      const unread = data?.filter(n => !n.read).length || 0
+      setUnreadCount(unread)
+    } catch (err) {
+      console.error('Error loading notifications:', err)
+      setError('Failed to load notifications')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Subscribe to real-time notifications
   useEffect(() => {
-    // Calculate unread count from dummy data
-    const count = dummyNotifications.filter(n => !n.read).length
-    setUnreadCount(count)
-  }, [])
+    if (!user) return
+
+    loadNotifications()
+
+    // Subscribe to new notifications
+    const channel = subscribeToNotifications(user.id, (newNotification) => {
+      console.log('🔔 New notification received:', newNotification)
+      setNotifications(prev => [newNotification, ...prev])
+      setUnreadCount(prev => prev + 1)
+    })
+
+    return () => {
+      if (channel) {
+        channel.unsubscribe()
+      }
+    }
+  }, [user])
+
+  const handleMarkAsRead = async (id) => {
+    const success = await markAsRead(id)
+    if (success) {
+      setNotifications(prev => 
+        prev.map(n => n.id === id ? { ...n, read: true } : n)
+      )
+      setUnreadCount(prev => Math.max(0, prev - 1))
+    }
+  }
+
+  const handleMarkAllAsRead = async () => {
+    if (!user) return
+    const success = await markAllAsRead(user.id)
+    if (success) {
+      setNotifications(prev => 
+        prev.map(n => ({ ...n, read: true }))
+      )
+      setUnreadCount(0)
+    }
+  }
+
+  const handleClearAll = async () => {
+    if (!user) return
+    if (window.confirm('Are you sure you want to clear all notifications?')) {
+      const success = await clearAllNotifications(user.id)
+      if (success) {
+        setNotifications([])
+        setUnreadCount(0)
+      }
+    }
+  }
 
   const getFilteredNotifications = () => {
     if (activeFilter === 'all') return notifications
@@ -114,27 +110,6 @@ export function Notifications() {
   }
 
   const filteredNotifications = getFilteredNotifications()
-
-  const handleMarkAsRead = (id) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === id ? { ...n, read: true } : n)
-    )
-    setUnreadCount(prev => Math.max(0, prev - 1))
-  }
-
-  const handleMarkAllAsRead = () => {
-    setNotifications(prev => 
-      prev.map(n => ({ ...n, read: true }))
-    )
-    setUnreadCount(0)
-  }
-
-  const handleClearAll = () => {
-    if (window.confirm('Are you sure you want to clear all notifications?')) {
-      setNotifications([])
-      setUnreadCount(0)
-    }
-  }
 
   const formatTime = (dateString) => {
     const date = new Date(dateString)
@@ -198,13 +173,17 @@ export function Notifications() {
               </button>
             </div>
           )}
-          <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-            Demo
-          </span>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-4">
+        {error && (
+          <div className="bg-red-50 text-red-700 p-3 rounded-xl mb-4 text-sm flex items-start gap-2">
+            <AlertCircle size={18} className="flex-shrink-0 mt-0.5" />
+            <span className="flex-1">{error}</span>
+          </div>
+        )}
+
         {/* Filter Tabs */}
         {notifications.length > 0 && (
           <div className="flex gap-1.5 pb-4 overflow-x-auto mb-4 border-b border-gray-100">

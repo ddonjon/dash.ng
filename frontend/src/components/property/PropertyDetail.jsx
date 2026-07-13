@@ -6,6 +6,7 @@ import {
   Bookmark, BookmarkCheck
 } from 'lucide-react'
 import { getPropertyById, getProperties, incrementInquiries } from '../../services/properties'
+import { createNotification } from '../../services/notifications'
 import { supabase } from '../../services/supabase'
 import { useAuth } from '../../context/AuthContext'
 
@@ -166,6 +167,19 @@ export function PropertyDetail() {
     if (property?.id) {
       try {
         await incrementInquiries(property.id)
+        
+        // Create notification for the agent
+        if (property.agent_id) {
+          await createNotification(
+            property.agent_id,
+            'inquiry',
+            'New inquiry on your property',
+            `${property.title} received a new inquiry`,
+            `/property/${property.id}`,
+            { propertyId: property.id }
+          )
+        }
+        
         setProperty(prev => ({
           ...prev,
           inquiries: (prev?.inquiries || 0) + 1
