@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../services/supabase'
 import { getAreas } from '../../services/properties'
+import { useToast } from '../../context/ToastContext'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const MAX_FILES = 5
@@ -46,6 +47,7 @@ const BEDROOM_OPTIONS = [1, 2, 3, 4, 5, 6]
 export function EditProperty() {
   const navigate = useNavigate()
   const { id } = useParams()
+  const { showToast } = useToast()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [property, setProperty] = useState(null)
@@ -54,7 +56,6 @@ export function EditProperty() {
   const [selectedFeatures, setSelectedFeatures] = useState([])
   const [uploadingImages, setUploadingImages] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [success, setSuccess] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
   const [areas, setAreas] = useState([])
   const [imageError, setImageError] = useState(null)
@@ -77,13 +78,6 @@ export function EditProperty() {
   })
 
   const selectedArea = watch('area')
-
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => setSuccess(null), 3000)
-      return () => clearTimeout(timer)
-    }
-  }, [success])
 
   useEffect(() => {
     if (areaSearchTerm.trim() === '') {
@@ -389,11 +383,11 @@ export function EditProperty() {
 
       if (error) throw error
 
-      setSuccess(status === 'published' ? '✅ Published!' : '✅ Draft saved!')
+      const message = status === 'published' ? '🎉 Published successfully!' : '📝 Draft updated!'
+      showToast(message, 'success', 4000)
       setTimeout(() => navigate('/my-listings'), 1500)
     } catch (err) {
       setImageError(err.message || 'Failed to save property')
-    } finally {
       setSubmitting(false)
     }
   }
@@ -464,15 +458,6 @@ export function EditProperty() {
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-5">
-        {success && (
-          <div className="fixed inset-0 flex items-center justify-center z-[100] pointer-events-none">
-            <div className="bg-[#EFE9FF] border border-[#DDD4FF] text-purple-700 px-8 py-4 rounded-2xl shadow-xl flex items-center gap-3 pointer-events-auto animate-in fade-in zoom-in-95 duration-300">
-              <CheckCircle size={24} className="text-purple-600" />
-              <span className="text-base font-semibold">{success}</span>
-            </div>
-          </div>
-        )}
-
         <form className="space-y-5">
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">Title <span className="text-red-500">*</span></label>
@@ -582,7 +567,6 @@ export function EditProperty() {
               <span className="text-xs font-normal text-gray-400 ml-1">(Minimum {MIN_FILES} for publishing)</span>
             </label>
 
-            {/* Image Error - Simple text like other form errors */}
             {imageError && (
               <p className="text-xs text-red-500 mt-1">{imageError}</p>
             )}

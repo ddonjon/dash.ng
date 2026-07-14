@@ -1,17 +1,25 @@
 import { useState, useEffect } from 'react'
 import { Mail, Lock, Eye, EyeOff, X, LogIn } from 'lucide-react'
 import { supabase } from '../../services/supabase'
+import { useToast } from '../../context/ToastContext'
 
 export function SignIn({ isOpen, onClose, onSwitchToSignUp, onForgotPassword }) {
+  const { showToast } = useToast()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
+  // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
+      // Reset form state when modal opens
+      setEmail('')
+      setPassword('')
+      setError(null)
+      setLoading(false)
     } else {
       document.body.style.overflow = 'unset'
     }
@@ -28,16 +36,24 @@ export function SignIn({ isOpen, onClose, onSwitchToSignUp, onForgotPassword }) 
     setLoading(true)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       })
 
       if (error) throw error
+
+      // Show success toast
+      const userName = data.user?.user_metadata?.name || data.user?.email?.split('@')[0] || 'User'
+      showToast(`Welcome back, ${userName}! 👋`, 'success', 3000)
+      
+      // Reset form and close
+      setEmail('')
+      setPassword('')
+      setLoading(false)
       onClose()
     } catch (err) {
-      setError(err.message || 'Failed to sign in')
-    } finally {
+      setError(err.message || 'Failed to sign in. Please check your credentials.')
       setLoading(false)
     }
   }

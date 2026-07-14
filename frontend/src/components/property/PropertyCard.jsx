@@ -97,7 +97,7 @@ export function PropertyCard({ property, onClick }) {
   return (
     <div 
       onClick={onClick}
-      className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden cursor-pointer active:scale-[0.98] lg:hover:scale-[1.01] border border-gray-200 hover:border-gray-300 relative"
+      className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden cursor-pointer border border-gray-200 hover:border-gray-300 relative"
     >
       <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4">
         {/* Image */}

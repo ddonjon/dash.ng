@@ -22,6 +22,8 @@ import { Help } from './components/help/Help'
 import { SignIn } from './components/auth/SignIn'
 import { SignUp } from './components/auth/SignUp'
 import { ResetPassword } from './components/auth/ResetPassword'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import { ScrollToTop } from './components/ScrollToTop'
 import './App.css'
 
 function HomePage({ isDrawerOpen }) {
@@ -67,7 +69,7 @@ function AppContent() {
   const { user, loading } = useAuth()
   const navigate = useNavigate()
 
-  // Check for password recovery hash on load
+  // Check for password recovery hash
   useEffect(() => {
     const hash = window.location.hash
     if (hash && hash.includes('type=recovery')) {
@@ -128,6 +130,9 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Scroll to top on route change */}
+      <ScrollToTop />
+      
       <div className={`transition-all duration-300 ${isDrawerOpen ? 'blur-sm' : ''}`}>
         <HeaderUI 
           onSignIn={openSignIn}
@@ -186,7 +191,7 @@ function AppContent() {
             } />
             <Route path="/sign-in" element={<Navigate to="/" replace />} />
             <Route path="/sign-up" element={<Navigate to="/" replace />} />
-            <Route path="/reset-password" element={<Navigate to="/" replace />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
           </Routes>
         </div>
       </div>
@@ -223,7 +228,9 @@ function App() {
       <Router>
         <AuthProvider>
           <ToastProvider>
-            <AppContent />
+            <ErrorBoundary>
+              <AppContent />
+            </ErrorBoundary>
           </ToastProvider>
         </AuthProvider>
       </Router>

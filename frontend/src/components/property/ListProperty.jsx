@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../services/supabase'
 import { getAreas } from '../../services/properties'
+import { useToast } from '../../context/ToastContext'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const MAX_FILES = 5
@@ -108,13 +109,13 @@ const BEDROOM_OPTIONS = [1, 2, 3, 4, 5, 6]
 
 export function ListProperty() {
   const navigate = useNavigate()
+  const { showToast } = useToast()
   const [areas, setAreas] = useState([])
   const [selectedFeatures, setSelectedFeatures] = useState([])
   const [images, setImages] = useState([])
   const [uploadingImages, setUploadingImages] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(null)
   const [user, setUser] = useState(null)
   const [userProfile, setUserProfile] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -140,16 +141,6 @@ export function ListProperty() {
   })
 
   const selectedArea = watch('area')
-
-  // Auto-dismiss success message after 3 seconds
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => {
-        setSuccess(null)
-      }, 3000)
-      return () => clearTimeout(timer)
-    }
-  }, [success])
 
   // Filter areas based on search term
   useEffect(() => {
@@ -197,7 +188,6 @@ export function ListProperty() {
       setUser(user)
       console.log('👤 Auth User ID:', user.id)
 
-      // Check if user profile exists
       const { data: profile, error: profileError } = await supabase
         .from('users')
         .select('*')
@@ -205,7 +195,6 @@ export function ListProperty() {
         .single()
 
       if (profileError || !profile) {
-        // Create user profile if it doesn't exist
         const { data: newProfile, error: createError } = await supabase
           .from('users')
           .insert([{
@@ -255,7 +244,6 @@ export function ListProperty() {
     })
   }
 
-  // Format price with commas
   const formatPriceWithCommas = (value) => {
     const digits = value.replace(/\D/g, '')
     return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
@@ -437,7 +425,6 @@ export function ListProperty() {
       return
     }
 
-    // For publishing, check minimum images
     if (status === 'published') {
       const uploadedCount = images.filter(img => img.url).length
       if (uploadedCount < MIN_FILES) {
@@ -446,7 +433,6 @@ export function ListProperty() {
       }
     }
 
-    // Check if all images are uploaded
     const hasUploading = images.some(img => img.uploading)
     if (hasUploading) {
       setError('Please wait for all images to finish uploading')
@@ -461,7 +447,6 @@ export function ListProperty() {
         .filter(img => img.url)
         .map(img => img.url)
 
-      // Remove commas from price before saving
       const cleanPrice = data.price.replace(/,/g, '')
 
       const propertyData = {
@@ -493,8 +478,8 @@ export function ListProperty() {
         throw insertError
       }
 
-      const message = status === 'published' ? 'Published' : 'Draft saved'
-      setSuccess(message)
+      const message = status === 'published' ? '🎉 Published successfully!' : '📝 Draft saved successfully!'
+      showToast(message, 'success', 4000)
       
       setTimeout(() => {
         navigate('/my-listings')
@@ -553,16 +538,6 @@ export function ListProperty() {
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-5">
-        {/* Success Toast - Centered with Light Purple */}
-        {success && (
-          <div className="fixed inset-0 flex items-center justify-center z-[100] pointer-events-none">
-            <div className="bg-[#EFE9FF] border border-[#DDD4FF] text-purple-700 px-8 py-4 rounded-2xl shadow-xl flex items-center gap-3 pointer-events-auto animate-in fade-in zoom-in-95 duration-300">
-              <CheckCircle size={24} className="text-purple-600" />
-              <span className="text-base font-semibold">{success}</span>
-            </div>
-          </div>
-        )}
-
         {/* Error Message */}
         {error && (
           <div className="bg-red-50 text-red-700 p-3 rounded-xl mb-4 text-sm flex items-start gap-2">
@@ -989,3 +964,6 @@ export function ListProperty() {
     </div>
   )
 }
+
+// Default export for compatibility
+export default ListProperty
